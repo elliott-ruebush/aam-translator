@@ -13,6 +13,7 @@ from .constants import (
     DEFAULT_FLOW_RESISTIVITY,
     DEFAULT_MODEL_CELL_FT,
     FT_PER_M,
+    NMBGF_FLOAT,
 )
 from .context import TerrainResult, lonlat_to_model_ft
 
@@ -48,8 +49,8 @@ def setup_para_block(
     it was stored as. Corners are floored to whole model cells so the grid fits
     strictly inside the terrain extent.
     """
-    dx32 = struct.unpack("f", struct.pack("f", terrain.elv_dx_m))[0]
-    dy32 = struct.unpack("f", struct.pack("f", terrain.elv_dy_m))[0]
+    dx32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, terrain.elv_dx_m))[0]
+    dy32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, terrain.elv_dy_m))[0]
     elv_x = terrain.nx * dx32 * FT_PER_M
     elv_y = terrain.ny * dy32 * FT_PER_M
     xmax = math.floor(elv_x / model_cell_ft) * model_cell_ft

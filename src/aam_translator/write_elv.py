@@ -19,7 +19,7 @@ from .aeqd_grid import (
     resample_dem_to_aeqd,
     write_aeqd_geotiff,
 )
-from .constants import FT_PER_M
+from .constants import FT_PER_M, NMBGF_FLOAT
 from .nmbgf_io import (
     NmbgfGridSpec,
     iter_grid_cells,
@@ -144,7 +144,7 @@ def write_nmbgf_elv_stream(
     logger.debug("Writing %s ZALT cells", n_cells)
     count = 0
     for val in iter_zalt_values(elevation_m, spec.width, spec.height, to_feet=spec.to_feet):
-        fp.write(struct.pack("f", val))
+        fp.write(struct.pack(NMBGF_FLOAT, val))
         count += 1
     logger.debug("Wrote %s ZALT cells", count)
 

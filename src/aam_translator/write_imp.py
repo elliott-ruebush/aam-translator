@@ -7,7 +7,7 @@ from typing import BinaryIO
 import logging
 import struct
 
-from .constants import DEFAULT_FLOW_RESISTIVITY, FT_PER_M
+from .constants import DEFAULT_FLOW_RESISTIVITY, FT_PER_M, NMBGF_FLOAT
 from .nmbgf_io import (
     NmbgfGridSpec,
     iter_grid_cells,
@@ -83,7 +83,7 @@ def write_nmbgf_imp_stream(
     logger.debug("Expecting %d cells to be written", n_cells)
     count = 0
     for val in iter_flow_values(spec.width, spec.height, flow_resistivity):
-        fp.write(struct.pack("f", val))
+        fp.write(struct.pack(NMBGF_FLOAT, val))
         count += 1
     logger.debug("Wrote %d cells", count)
 

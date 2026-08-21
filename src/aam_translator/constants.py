@@ -1,6 +1,7 @@
 """Shared physical and format constants for AAM geospatial inputs."""
 
 FT_PER_M = 3.28084
+NMBGF_FLOAT = "<f"
 NMBGF_TITLE_WIDTH = 20
 DEFAULT_FLOW_RESISTIVITY = 200.0
 DEFAULT_MODEL_CELL_FT = 300.0

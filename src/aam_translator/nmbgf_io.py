@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import BinaryIO
 import struct
 
-from .constants import NMBGF_TITLE_WIDTH, NMBGF_XRYR
+from .constants import NMBGF_FLOAT, NMBGF_TITLE_WIDTH, NMBGF_XRYR
 
 
 @dataclass(frozen=True)
@@ -72,8 +72,8 @@ def write_nmbgf_case_header(
     fp.write(struct.pack("<i", 0))
     fp.write(b"DIDJ")
     fp.write(struct.pack("<i", 2))
-    fp.write(struct.pack("f", spec.dx_out))
-    fp.write(struct.pack("f", spec.dy_out))
+    fp.write(struct.pack(NMBGF_FLOAT, spec.dx_out))
+    fp.write(struct.pack(NMBGF_FLOAT, spec.dy_out))
     fp.write(b"IRJR")
     fp.write(struct.pack("<i", 2))
     fp.write(struct.pack("<i", 1))
@@ -99,8 +99,8 @@ def write_nmbgf_metric_header(
     fp.write(mtrc_tag)
     fp.write(b"XRYR")
     fp.write(struct.pack("<i", 2))
-    fp.write(struct.pack("f", xr))
-    fp.write(struct.pack("f", yr))
+    fp.write(struct.pack(NMBGF_FLOAT, xr))
+    fp.write(struct.pack(NMBGF_FLOAT, yr))
     fp.write(payload_tag)
     fp.write(struct.pack("<i", n_cells))
 
@@ -108,7 +108,7 @@ def write_nmbgf_metric_header(
 def write_nmbgf_payload(fp: BinaryIO, values: Iterable[float]) -> None:
     """Write NMBGF payload floats with the same packing as AAM writers."""
     for val in values:
-        fp.write(struct.pack("f", val))
+        fp.write(struct.pack(NMBGF_FLOAT, val))
 
 
 def write_nmbgf_end(fp: BinaryIO) -> None:
@@ -212,7 +212,7 @@ def read_nmbgf_header(path: str | Path) -> NmbgfHeader:
     if n_cells < 0 or off + nbytes > len(data):
         raise ValueError(f"invalid n_cells {n_cells}")
     if n_cells:
-        values = struct.unpack_from(f"{n_cells}f", data, off)
+        values = struct.unpack_from(f"<{n_cells}f", data, off)
     else:
         values = ()
     off += nbytes
@@ -255,4 +255,4 @@ def _read_i32(data: bytes, off: int) -> tuple[int, int]:
 
 
 def _read_f32(data: bytes, off: int) -> tuple[float, int]:
-    return struct.unpack_from("f", data, off)[0], off + 4
+    return struct.unpack_from(NMBGF_FLOAT, data, off)[0], off + 4

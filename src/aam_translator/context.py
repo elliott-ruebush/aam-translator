@@ -14,6 +14,7 @@ from .constants import (
     DEFAULT_GRID_AGL_FT,
     DEFAULT_MODEL_CELL_FT,
     FT_PER_M,
+    NMBGF_FLOAT,
 )
 
 
@@ -69,8 +70,8 @@ def lonlat_to_model_ft(
 
 def elv_extent_ft(terrain: TerrainResult) -> tuple[float, float]:
     """Return the ELV upper-right corner in feet using float32 cell sizes."""
-    dx32 = struct.unpack("f", struct.pack("f", terrain.elv_dx_m))[0]
-    dy32 = struct.unpack("f", struct.pack("f", terrain.elv_dy_m))[0]
+    dx32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, terrain.elv_dx_m))[0]
+    dy32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, terrain.elv_dy_m))[0]
     elv_x = terrain.nx * dx32 * FT_PER_M
     elv_y = terrain.ny * dy32 * FT_PER_M
     return elv_x, elv_y
