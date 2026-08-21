@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aam-translator"
+version = "0.1.0"
+description = "Prepare geospatial inputs for the Advanced Acoustic Model (.ELV, .IMP, .INP)"
+readme = "README.md"
+authors = [
+    { name = "Elliott Ruebush" },
+]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy==2.2.6",
+    "rasterio==1.4.3",
+    "pyproj==3.7.1",
+    "shapely==2.1.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.5",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aam_translator"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
