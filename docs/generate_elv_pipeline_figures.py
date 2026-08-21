@@ -200,7 +200,7 @@ def fig_utm_vs_aeqd(path: Path) -> float:
     ax.set_xlabel("AEQD easting (m)")
     ax.set_ylabel("AEQD northing (m)")
     ax.set_title(
-        "Current writer indexes UTM pixels as if they sat on the dashed rectangle",
+        "Legacy UTM-index copy vs true AEQD bbox (current writer resamples at centers)",
         loc="left",
         pad=8,
     )
