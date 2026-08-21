@@ -1,4 +1,4 @@
-"""Orchestration: terrain (.ELV / .IMP) and full AAM input decks."""
+"""Orchestration: terrain (``.ELV`` / ``.IMP``) and full AAM scenario inputs."""
 
 from __future__ import annotations
 
@@ -113,7 +113,7 @@ def write_aam_inputs(
     inp_basename: str = "scenario.inp",
     **terrain_kwargs,
 ) -> AamInputs:
-    """Write terrain files and a COMPUTEPOI ``.INP`` deck in one call."""
+    """Write terrain files and a single-event ``.INP`` file (``COMPUTEPOI`` mode) in one call."""
     terrain = write_terrain(dem_path, aoi, out_dir, crs_in=crs_in, **terrain_kwargs)
     inp_path = write_inp(
         terrain,

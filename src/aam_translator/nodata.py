@@ -13,8 +13,8 @@ def fill_nodata(arr, nodata, policy: str = "edge") -> np.ndarray:
     Parameters
     ----------
     policy:
-        ``edge`` — nearest valid neighbour (default; avoids false 0 ft MSL pockets)
-        ``zero`` — legacy behaviour (write 0.0)
+        ``edge`` — nearest valid neighbor (default; avoids false 0 ft MSL pockets)
+        ``zero`` — legacy behavior (write 0.0)
         ``median`` — fill with median of valid cells
     """
     out = arr.astype(np.float64, copy=True)

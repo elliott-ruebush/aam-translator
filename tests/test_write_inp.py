@@ -1,4 +1,4 @@
-"""Tests for COMPUTEPOI ``.INP`` deck writing."""
+"""Tests for single-event ``.INP`` file writing."""
 
 from __future__ import annotations
 

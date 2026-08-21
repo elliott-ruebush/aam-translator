@@ -1,4 +1,4 @@
-"""Write an AAM COMPUTEPOI ``.INP`` deck from terrain and geometry."""
+"""Write a single-event AAM ``.INP`` file (``COMPUTEPOI`` mode) from terrain and geometry."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class TrackPoint:
     lon: float
     lat: float
-    alt_m: float  # MSL metres
+    alt_m: float  # MSL meters
 
 
 @dataclass
@@ -79,7 +79,7 @@ def write_inp(
     speed_kn: float = 0.0,
     heading_deg: float = 90.0,
 ) -> str:
-    """Write a COMPUTEPOI ``.INP`` deck and return the output path."""
+    """Write a single-event ``.INP`` file (``COMPUTEPOI`` mode) and return the output path."""
     out = Path(inp_path)
     elv_name = elv_basename or Path(terrain.elv_path).name
     imp_name = imp_basename or (
