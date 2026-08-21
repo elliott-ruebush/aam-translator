@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, BinaryIO
 import numpy as np
 
 from .constants import DEFAULT_FLOW_RESISTIVITY
+from .grid_spec import GridSpec
 from .nmbgf_io import (
     NmbgfGridSpec,
     build_nmbgf_grid_spec,
@@ -29,10 +30,7 @@ if TYPE_CHECKING:
 class ImpGridContext:
     """ELV grid geometry required to write a matching ``.IMP`` file."""
 
-    width: int
-    height: int
-    dx_m: float
-    dy_m: float
+    spec: GridSpec
     header_feet: bool = True
     default_flow_resistivity: float = DEFAULT_FLOW_RESISTIVITY
 
@@ -45,11 +43,8 @@ class ImpGridContext:
     ) -> ImpGridContext:
         """Build IMP grid geometry from a companion ``.ELV`` write result."""
         return cls(
-            width=elv.nx,
-            height=elv.ny,
-            dx_m=elv.elv_dx_m,
-            dy_m=elv.elv_dy_m,
-            header_feet=elv.elv_header_feet,
+            spec=elv.spec,
+            header_feet=elv.header_feet,
             default_flow_resistivity=flow_resistivity,
         )
 
@@ -66,11 +61,12 @@ def resolve_flow_resistivity(
 
 def build_imp_grid_spec(ctx: ImpGridContext) -> NmbgfGridSpec:
     """Header spacing/units aligned with the companion ``.ELV`` grid."""
+    spec = ctx.spec
     return build_nmbgf_grid_spec(
-        width=ctx.width,
-        height=ctx.height,
-        dx_m=ctx.dx_m,
-        dy_m=ctx.dy_m,
+        width=spec.cell_count_x,
+        height=spec.cell_count_y,
+        dx_m=spec.cell_dx_m,
+        dy_m=spec.cell_dy_m,
         header_feet=ctx.header_feet,
     )
 

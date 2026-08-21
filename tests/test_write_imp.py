@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from aam_translator.constants import DEFAULT_FLOW_RESISTIVITY, FT_PER_M, NMBGF_XRYR
+from aam_translator.grid_spec import GridSpec
 from aam_translator.nmbgf_io import (
     NmbgfGridSpec,
     read_nmbgf_header,
@@ -18,10 +19,18 @@ from aam_translator.nmbgf_io import (
 from aam_translator.write_imp import ImpGridContext, write_imp_for_elv_grid
 from nmbgf_helpers import pack_nmbgf_test_payload
 
-_GRID = ImpGridContext(width=4, height=3, dx_m=91.44, dy_m=45.72)
-_DX_FT = _GRID.dx_m * FT_PER_M
-_DY_FT = _GRID.dy_m * FT_PER_M
-_N_CELLS = _GRID.width * _GRID.height
+_GRID_SPEC = GridSpec(
+    cell_count_x=4,
+    cell_count_y=3,
+    cell_dx_m=91.44,
+    cell_dy_m=45.72,
+    grid_origin_x_m=0.0,
+    grid_origin_y_m=0.0,
+)
+_GRID = ImpGridContext(spec=_GRID_SPEC)
+_DX_FT = _GRID_SPEC.cell_dx_m * FT_PER_M
+_DY_FT = _GRID_SPEC.cell_dy_m * FT_PER_M
+_N_CELLS = _GRID_SPEC.cell_count_x * _GRID_SPEC.cell_count_y
 
 
 def _write_minimal_elv(path: Path, *, spec: NmbgfGridSpec, title: str) -> None:
@@ -52,7 +61,7 @@ def test_write_imp_for_elv_grid_header_and_flow(tmp_path: Path) -> None:
     hdr = read_nmbgf_header(imp_path)
     assert hdr.data_tag == "FLOW"
     assert hdr.units == "FEET"
-    assert (hdr.ni, hdr.nj) == (_GRID.width, _GRID.height)
+    assert (hdr.ni, hdr.nj) == (_GRID_SPEC.cell_count_x, _GRID_SPEC.cell_count_y)
     assert hdr.di == pytest.approx(_DX_FT)
     assert hdr.dj == pytest.approx(_DY_FT)
     assert hdr.xryr == NMBGF_XRYR
@@ -63,8 +72,8 @@ def test_write_imp_for_elv_grid_header_and_flow(tmp_path: Path) -> None:
 
 def test_write_imp_geometry_matches_companion_elv(tmp_path: Path) -> None:
     spec = NmbgfGridSpec(
-        width=_GRID.width,
-        height=_GRID.height,
+        width=_GRID_SPEC.cell_count_x,
+        height=_GRID_SPEC.cell_count_y,
         dx_out=_DX_FT,
         dy_out=_DY_FT,
         units_tag=b"FEET",

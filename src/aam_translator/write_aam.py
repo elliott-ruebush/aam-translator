@@ -14,7 +14,7 @@ from .constants import (
     DEFAULT_GRID_AGL_FT,
     DEFAULT_MODEL_CELL_FT,
 )
-from .context import TerrainResult, aoi_clip_box, build_local_crs
+from .context import TerrainResult, aoi_envelope, build_aeqd_crs
 from .write_elv import write_elv_from_dem
 from .write_imp import ImpGridContext, write_imp_for_elv_grid
 from .write_inp import PoiPoint, TrackPoint, write_inp
@@ -64,17 +64,17 @@ def write_terrain(
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
-    clip_box = aoi_clip_box(aoi)
-    local_crs = build_local_crs(aoi, crs_in=crs_in)
+    envelope = aoi_envelope(aoi)
+    aeqd_crs = build_aeqd_crs(aoi, crs_in=crs_in)
     elv_path = out / _sanitize_basename(elv_basename, kind="elv_basename")
     imp_path = out / _sanitize_basename(imp_basename, kind="imp_basename")
 
     elv_result = write_elv_from_dem(
         str(dem_path),
         str(elv_path),
-        clip_box=clip_box,
+        aoi_envelope=envelope,
         crs_in=crs_in,
-        local_crs=local_crs,
+        aeqd_crs=aeqd_crs,
         title=elv_title,
         z0=z0,
         to_feet=to_feet,
@@ -91,7 +91,7 @@ def write_terrain(
 
     return TerrainResult.from_elv_write(
         elv_result,
-        local_crs=local_crs,
+        aeqd_crs=aeqd_crs,
         elv_path=str(elv_path),
         imp_path=str(imp_path),
         grid_agl_ft=grid_agl_ft,

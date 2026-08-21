@@ -11,8 +11,8 @@ import pytest
 from aam_translator.constants import DEFAULT_MODEL_CELL_FT, FT_PER_M
 from aam_translator.context import (
     TerrainResult,
-    aoi_clip_box,
-    build_local_crs,
+    aoi_envelope,
+    build_aeqd_crs,
     elv_extent_ft,
     lonlat_to_model_ft,
 )
@@ -22,17 +22,17 @@ from aam_translator.write_inp import PoiPoint, TrackPoint, setup_para_block, wri
 
 
 def _build_terrain(tmp_path: Path, tiny_dem_path, tiny_aoi_geom) -> TerrainResult:
-    clip_box = aoi_clip_box(tiny_aoi_geom)
-    local_crs = build_local_crs(tiny_aoi_geom)
+    envelope = aoi_envelope(tiny_aoi_geom)
+    aeqd_crs = build_aeqd_crs(tiny_aoi_geom)
     elv_path = tmp_path / "scenario.elv"
     imp_path = tmp_path / "scenario.imp"
 
     elv_result = write_elv_from_dem(
         str(tiny_dem_path),
         str(elv_path),
-        clip_box=clip_box,
+        aoi_envelope=envelope,
         crs_in="EPSG:4326",
-        local_crs=local_crs,
+        aeqd_crs=aeqd_crs,
     )
     write_imp_for_elv_grid(
         str(imp_path),
@@ -41,7 +41,7 @@ def _build_terrain(tmp_path: Path, tiny_dem_path, tiny_aoi_geom) -> TerrainResul
 
     return TerrainResult.from_elv_write(
         elv_result,
-        local_crs=local_crs,
+        aeqd_crs=aeqd_crs,
         elv_path=str(elv_path),
         imp_path=str(imp_path),
     )

@@ -134,7 +134,7 @@ def fig_utm_vs_aeqd(path: Path) -> float:
         lw=1.8,
         ls="--",
         zorder=4,
-        label=r"Fake AEQD rect  $SW+(n_x\,\Delta x,\,n_y\,\Delta y)$",
+        label=r"Fake AEQD rect  $SW+(\mathrm{cell\_count\_x}\,\Delta x,\,\mathrm{cell\_count\_y}\,\Delta y)$",
     )
     ax.plot(
         *_closed(aabb).T,
@@ -213,29 +213,30 @@ def fig_utm_vs_aeqd(path: Path) -> float:
 
 def fig_cell_center_vs_corner(path: Path) -> None:
     """Figure 2: cartoon 4×3 grid — origin at SW corner, Z at centers."""
-    nx, ny = 4, 3
-    dx, dy = DX_M, DY_M
+    cell_count_x, cell_count_y = 4, 3
+    cell_dx_m, cell_dy_m = DX_M, DY_M
 
     fig, ax = plt.subplots(figsize=(6.6, 5.0))
-    for i in range(nx):
-        for j in range(ny):
-            is_first = i == 0 and j == 0
+    for col_i in range(cell_count_x):
+        for row_j in range(cell_count_y):
+            is_first = col_i == 0 and row_j == 0
             rect = Rectangle(
-                (i * dx, j * dy),
-                dx,
-                dy,
+                (col_i * cell_dx_m, row_j * cell_dy_m),
+                cell_dx_m,
+                cell_dy_m,
                 facecolor=SKY if is_first else "white",
                 edgecolor=GRAY,
                 lw=1.4,
                 zorder=2,
             )
             ax.add_patch(rect)
-            cx, cy = (i + 0.5) * dx, (j + 0.5) * dy
+            cx = (col_i + 0.5) * cell_dx_m
+            cy = (row_j + 0.5) * cell_dy_m
             ax.plot(cx, cy, "o", color=ORANGE, ms=8, zorder=4, markeredgecolor="white")
             ax.text(
                 cx,
                 cy + 4.6,
-                f"({i},{j})",
+                f"({col_i},{row_j})",
                 ha="center",
                 va="bottom",
                 fontsize=8,
@@ -254,7 +255,7 @@ def fig_cell_center_vs_corner(path: Path) -> None:
         markeredgewidth=0.6,
     )
     ax.annotate(
-        r"XRYR = (0, 0)" + "\nSW corner of cell (0, 0)",
+        r"XRYR = (0, 0)" + "\nSW corner of cell (col_i=0, row_j=0)",
         xy=(0.0, 0.0),
         xytext=(-38, -22),
         fontsize=8.5,
@@ -264,27 +265,27 @@ def fig_cell_center_vs_corner(path: Path) -> None:
     )
     ax.annotate(
         "First NMBGF cell\n(SW, j-reversed)",
-        xy=(0.45 * dx, 0.22 * dy),
-        xytext=(1.15 * dx, -0.85 * dy),
+        xy=(0.45 * cell_dx_m, 0.22 * cell_dy_m),
+        xytext=(1.15 * cell_dx_m, -0.85 * cell_dy_m),
         fontsize=8.5,
         color=BLUE,
         ha="left",
         arrowprops=dict(arrowstyle="->", color=BLUE, lw=1.0),
     )
 
-    # DIDJ along the south edge of cell (1,0)
-    y_dim = -0.18 * dy
+    # DIDJ along the south edge of cell (col_i=1, row_j=0)
+    y_dim = -0.18 * cell_dy_m
     ax.annotate(
         "",
-        xy=(2 * dx, y_dim),
-        xytext=(1 * dx, y_dim),
+        xy=(2 * cell_dx_m, y_dim),
+        xytext=(1 * cell_dx_m, y_dim),
         arrowprops=dict(arrowstyle="<->", color=GREEN, lw=1.2),
         annotation_clip=False,
     )
     ax.text(
-        1.5 * dx,
+        1.5 * cell_dx_m,
         y_dim - 4.5,
-        r"DIDJ  $\Delta x$ (metric posting)",
+        r"DIDJ  cell_dx_m (metric posting)",
         ha="center",
         va="top",
         fontsize=8,
@@ -321,14 +322,14 @@ def fig_cell_center_vs_corner(path: Path) -> None:
         fancybox=False,
         edgecolor="#DDDDDD",
     )
-    ax.set_xlim(-1.55 * dx, nx * dx + 0.45 * dx)
-    ax.set_ylim(-1.35 * dy, ny * dy + 0.55 * dy)
+    ax.set_xlim(-1.55 * cell_dx_m, cell_count_x * cell_dx_m + 0.45 * cell_dx_m)
+    ax.set_ylim(-1.35 * cell_dy_m, cell_count_y * cell_dy_m + 0.55 * cell_dy_m)
     ax.set_aspect("equal")
-    ax.set_xlabel("model i  →  east  (m on the AEQD plane)")
-    ax.set_ylabel("model j  →  north  (m on the AEQD plane)")
+    ax.set_xlabel("col_i  →  east  (m on the AEQD plane)")
+    ax.set_ylabel("row_j  →  north  (m on the AEQD plane)")
     ax.set_title("Origin is a corner; ZALT is a center sample", loc="left", pad=8)
-    ax.set_xticks([i * dx for i in range(nx + 1)])
-    ax.set_yticks([j * dy for j in range(ny + 1)])
+    ax.set_xticks([col_i * cell_dx_m for col_i in range(cell_count_x + 1)])
+    ax.set_yticks([row_j * cell_dy_m for row_j in range(cell_count_y + 1)])
     fig.tight_layout()
     fig.savefig(path, dpi=DPI, bbox_inches="tight", pad_inches=0.15)
     plt.close(fig)
@@ -339,11 +340,12 @@ def fig_aeqd_sample_centers(path: Path) -> None:
     _utm_xy, aeqd_xy, (utm_minx, utm_miny) = utm_tile_corners()
     _, utm_to_aeqd, _ = _transformers()
 
-    aabb_min = aeqd_xy.min(axis=0)
-    nx_aeqd = int(np.ceil((aeqd_xy[:, 0].max() - aabb_min[0]) / DX_M))
-    ny_aeqd = int(np.ceil((aeqd_xy[:, 1].max() - aabb_min[1]) / DY_M))
-    aeqd_cx = aabb_min[0] + (np.arange(nx_aeqd) + 0.5) * DX_M
-    aeqd_cy = aabb_min[1] + (np.arange(ny_aeqd) + 0.5) * DY_M
+    # Union AEQD bounds → grid_origin_*_m (same snap logic as build_aeqd_grid).
+    grid_origin_x_m, grid_origin_y_m = aeqd_xy.min(axis=0)
+    cell_count_x = int(np.ceil((aeqd_xy[:, 0].max() - grid_origin_x_m) / DX_M))
+    cell_count_y = int(np.ceil((aeqd_xy[:, 1].max() - grid_origin_y_m) / DY_M))
+    aeqd_cx = grid_origin_x_m + (np.arange(cell_count_x) + 0.5) * DX_M
+    aeqd_cy = grid_origin_y_m + (np.arange(cell_count_y) + 0.5) * DY_M
 
     # Zoom near the NE, where the UTM/AEQD mismatch is obvious.
     true_ne = aeqd_xy[2]

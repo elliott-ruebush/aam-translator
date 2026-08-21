@@ -15,15 +15,16 @@ from aam_translator.aeqd_grid import AeqdGrid
 def _sample_dem_at_aeqd_point_src(
     src: rasterio.io.DatasetReader,
     grid: AeqdGrid,
-    x_m: float,
-    y_m: float,
+    aeqd_x_m: float,
+    aeqd_y_m: float,
 ) -> float:
     """Sample ``src`` at an AEQD point using the same GDAL bilinear warp."""
+    spec = grid.spec
     cell_transform = from_origin(
-        x_m - 0.5 * grid.dx_m,
-        y_m + 0.5 * grid.dy_m,
-        grid.dx_m,
-        grid.dy_m,
+        aeqd_x_m - 0.5 * spec.cell_dx_m,
+        aeqd_y_m + 0.5 * spec.cell_dy_m,
+        spec.cell_dx_m,
+        spec.cell_dy_m,
     )
     sample = np.full((1, 1), np.nan, dtype=np.float64)
     reproject(
@@ -32,7 +33,7 @@ def _sample_dem_at_aeqd_point_src(
         src_transform=src.transform,
         src_crs=src.crs,
         dst_transform=cell_transform,
-        dst_crs=grid.local_crs,
+        dst_crs=grid.aeqd_crs,
         src_nodata=src.nodata,
         dst_nodata=np.nan,
         resampling=Resampling.bilinear,
@@ -55,16 +56,16 @@ class DemOracle:
     def __exit__(self, *_exc: object) -> None:
         self.close()
 
-    def sample(self, grid: AeqdGrid, x_m: float, y_m: float) -> float:
-        return _sample_dem_at_aeqd_point_src(self._src, grid, x_m, y_m)
+    def sample(self, grid: AeqdGrid, aeqd_x_m: float, aeqd_y_m: float) -> float:
+        return _sample_dem_at_aeqd_point_src(self._src, grid, aeqd_x_m, aeqd_y_m)
 
 
 def sample_dem_at_aeqd_point(
     dem_path: str | Path,
     grid: AeqdGrid,
-    x_m: float,
-    y_m: float,
+    aeqd_x_m: float,
+    aeqd_y_m: float,
 ) -> float:
     """Sample the parent DEM at an AEQD point using the same GDAL bilinear warp."""
     with rasterio.open(dem_path) as src:
-        return _sample_dem_at_aeqd_point_src(src, grid, x_m, y_m)
+        return _sample_dem_at_aeqd_point_src(src, grid, aeqd_x_m, aeqd_y_m)

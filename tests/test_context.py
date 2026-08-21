@@ -10,8 +10,8 @@ from pyproj import Transformer
 from aam_translator.constants import FT_PER_M
 from aam_translator.context import (
     TerrainResult,
-    aoi_clip_box,
-    build_local_crs,
+    aoi_envelope,
+    build_aeqd_crs,
     elv_extent_ft,
     lonlat_to_model_ft,
 )
@@ -19,8 +19,8 @@ from aam_translator.write_elv import write_elv_from_dem
 from dem_fixtures import grid_from_elv_result
 
 
-def test_build_local_crs_returns_valid_crs(tiny_aoi_geom) -> None:
-    crs = build_local_crs(tiny_aoi_geom)
+def test_build_aeqd_crs_returns_valid_crs(tiny_aoi_geom) -> None:
+    crs = build_aeqd_crs(tiny_aoi_geom)
     assert crs.is_projected
     operation = crs.coordinate_operation
     assert operation is not None
@@ -34,33 +34,34 @@ def test_build_local_crs_returns_valid_crs(tiny_aoi_geom) -> None:
 def test_lonlat_to_model_ft_corners(
     tmp_path: Path, tiny_dem_path, tiny_aoi_geom,
 ) -> None:
-    clip_box = aoi_clip_box(tiny_aoi_geom)
-    local_crs = build_local_crs(tiny_aoi_geom)
+    envelope = aoi_envelope(tiny_aoi_geom)
+    aeqd_crs = build_aeqd_crs(tiny_aoi_geom)
     elv_path = tmp_path / "scenario.elv"
 
     result = write_elv_from_dem(
         str(tiny_dem_path),
         str(elv_path),
-        clip_box=clip_box,
+        aoi_envelope=envelope,
         crs_in="EPSG:4326",
-        local_crs=local_crs,
+        aeqd_crs=aeqd_crs,
     )
-    grid = grid_from_elv_result(result, local_crs)
+    grid = grid_from_elv_result(result, aeqd_crs)
+    spec = result.spec
     terrain = TerrainResult.from_elv_write(
         result,
-        local_crs=local_crs,
+        aeqd_crs=aeqd_crs,
         elv_path=str(elv_path),
     )
 
-    to_wgs = Transformer.from_crs(local_crs, "EPSG:4326", always_xy=True)
-    sw_lon, sw_lat = to_wgs.transform(grid.minx_m, grid.miny_m)
-    ne_lon, ne_lat = to_wgs.transform(grid.maxx_m, grid.maxy_m)
+    to_wgs = Transformer.from_crs(aeqd_crs, "EPSG:4326", always_xy=True)
+    sw_lon, sw_lat = to_wgs.transform(spec.grid_origin_x_m, spec.grid_origin_y_m)
+    ne_lon, ne_lat = to_wgs.transform(grid.grid_extent_x_m, grid.grid_extent_y_m)
 
     sw_x, sw_y = lonlat_to_model_ft(terrain, sw_lon, sw_lat)
     ne_x, ne_y = lonlat_to_model_ft(terrain, ne_lon, ne_lat)
 
-    expected_x = terrain.nx * terrain.elv_dx_m * FT_PER_M
-    expected_y = terrain.ny * terrain.elv_dy_m * FT_PER_M
+    expected_x = spec.cell_count_x * spec.cell_dx_m * FT_PER_M
+    expected_y = spec.cell_count_y * spec.cell_dy_m * FT_PER_M
 
     assert sw_x == pytest.approx(0.0, abs=1.0)
     assert sw_y == pytest.approx(0.0, abs=1.0)

@@ -107,28 +107,22 @@ def wgs84_box_from_utm_extent(
     return box(min(lons), min(lats), max(lons), max(lats))
 
 
-def grid_from_elv_result(result, local_crs):
+def grid_from_elv_result(result, aeqd_crs):
     """Reconstruct an ``AeqdGrid`` from ``ElvWriteResult`` for test assertions."""
     from rasterio.transform import from_origin
 
     from aam_translator.aeqd_grid import AeqdGrid
 
-    maxx = result.elv_world_minx_m + result.nx * result.elv_dx_m
-    maxy = result.elv_world_miny_m + result.ny * result.elv_dy_m
+    spec = result.spec
     return AeqdGrid(
-        nx=result.nx,
-        ny=result.ny,
-        dx_m=result.elv_dx_m,
-        dy_m=result.elv_dy_m,
-        minx_m=result.elv_world_minx_m,
-        miny_m=result.elv_world_miny_m,
-        maxx_m=maxx,
-        maxy_m=maxy,
+        spec=spec,
+        grid_extent_x_m=spec.grid_extent_x_m,
+        grid_extent_y_m=spec.grid_extent_y_m,
         transform=from_origin(
-            result.elv_world_minx_m,
-            maxy,
-            result.elv_dx_m,
-            result.elv_dy_m,
+            spec.grid_origin_x_m,
+            spec.grid_extent_y_m,
+            spec.cell_dx_m,
+            spec.cell_dy_m,
         ),
-        local_crs=local_crs,
+        aeqd_crs=aeqd_crs,
     )

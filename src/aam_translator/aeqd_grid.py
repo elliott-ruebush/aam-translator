@@ -16,21 +16,18 @@ from rasterio.warp import Resampling, reproject
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform
 
+from .grid_spec import BoundsM, GridSpec, merge_bounds
+
 
 @dataclass(frozen=True)
 class AeqdGrid:
     """North-up elevation lattice in a local azimuthal-equidistant CRS."""
 
-    nx: int
-    ny: int
-    dx_m: float
-    dy_m: float
-    minx_m: float
-    miny_m: float
-    maxx_m: float
-    maxy_m: float
+    spec: GridSpec
+    grid_extent_x_m: float
+    grid_extent_y_m: float
     transform: Affine
-    local_crs: CRS
+    aeqd_crs: CRS
 
 
 def dem_posting_meters_from_src(
@@ -66,21 +63,21 @@ def transform_geometry_to_crs(
 
 def aeqd_bounds_from_geometry(
     geom: BaseGeometry,
-    local_crs: CRS,
+    aeqd_crs: CRS,
     *,
     crs_in: str | CRS = "EPSG:4326",
-) -> tuple[float, float, float, float]:
+) -> BoundsM:
     """Axis-aligned AEQD bounds of ``geom``'s corner coordinates."""
-    aeqd_geom = transform_geometry_to_crs(geom, crs_in=crs_in, crs_out=local_crs)
-    return aeqd_geom.bounds
+    aeqd_geom = transform_geometry_to_crs(geom, crs_in=crs_in, crs_out=aeqd_crs)
+    return BoundsM.from_tuple(aeqd_geom.bounds)
 
 
 def aeqd_bounds_from_dem_src(
     src: rasterio.io.DatasetReader,
-    local_crs: CRS,
-) -> tuple[float, float, float, float]:
+    aeqd_crs: CRS,
+) -> BoundsM:
     """Axis-aligned AEQD bounds of the parent DEM footprint."""
-    to_aeqd = Transformer.from_crs(src.crs, local_crs, always_xy=True)
+    to_aeqd = Transformer.from_crs(src.crs, aeqd_crs, always_xy=True)
     bounds = src.bounds
     corners = [
         (bounds.left, bounds.bottom),
@@ -92,45 +89,34 @@ def aeqd_bounds_from_dem_src(
         *(to_aeqd.transform(x, y) for x, y in corners),
         strict=True,
     )
-    return min(xs), min(ys), max(xs), max(ys)
+    return BoundsM(min(xs), min(ys), max(xs), max(ys))
 
 
 def aeqd_bounds_from_dem(
     dem_path: str | Path,
-    local_crs: CRS,
-) -> tuple[float, float, float, float]:
+    aeqd_crs: CRS,
+) -> BoundsM:
     """Axis-aligned AEQD bounds of the parent DEM footprint."""
     with rasterio.open(dem_path) as src:
-        return aeqd_bounds_from_dem_src(src, local_crs)
-
-
-def merge_bounds(
-    *bounds: tuple[float, float, float, float],
-) -> tuple[float, float, float, float]:
-    """Return the union of several axis-aligned bounds."""
-    minx = min(b[0] for b in bounds)
-    miny = min(b[1] for b in bounds)
-    maxx = max(b[2] for b in bounds)
-    maxy = max(b[3] for b in bounds)
-    return minx, miny, maxx, maxy
+        return aeqd_bounds_from_dem_src(src, aeqd_crs)
 
 
 def assert_aoi_within_dem_src(
-    clip_box: BaseGeometry,
+    aoi_envelope: BaseGeometry,
     dem_src: rasterio.io.DatasetReader,
-    local_crs: CRS,
+    aeqd_crs: CRS,
     *,
     crs_in: str | CRS = "EPSG:4326",
     tol_m: float,
 ) -> None:
     """Raise if the AOI envelope extends beyond the parent DEM footprint."""
-    aoi_bounds = aeqd_bounds_from_geometry(clip_box, local_crs, crs_in=crs_in)
-    dem_bounds = aeqd_bounds_from_dem_src(dem_src, local_crs)
+    aoi_bounds = aeqd_bounds_from_geometry(aoi_envelope, aeqd_crs, crs_in=crs_in)
+    dem_bounds = aeqd_bounds_from_dem_src(dem_src, aeqd_crs)
     if (
-        aoi_bounds[0] < dem_bounds[0] - tol_m
-        or aoi_bounds[1] < dem_bounds[1] - tol_m
-        or aoi_bounds[2] > dem_bounds[2] + tol_m
-        or aoi_bounds[3] > dem_bounds[3] + tol_m
+        aoi_bounds.xmin_m < dem_bounds.xmin_m - tol_m
+        or aoi_bounds.ymin_m < dem_bounds.ymin_m - tol_m
+        or aoi_bounds.xmax_m > dem_bounds.xmax_m + tol_m
+        or aoi_bounds.ymax_m > dem_bounds.ymax_m + tol_m
     ):
         raise ValueError(
             "AOI extends beyond parent DEM coverage; "
@@ -139,51 +125,60 @@ def assert_aoi_within_dem_src(
 
 
 def build_aeqd_grid(
-    clip_box: BaseGeometry,
-    local_crs: CRS,
-    dx_m: float,
+    aoi_envelope: BaseGeometry,
+    aeqd_crs: CRS,
+    cell_dx_m: float,
     *,
     crs_in: str | CRS = "EPSG:4326",
-    dy_m: float | None = None,
+    cell_dy_m: float | None = None,
     dem_path: str | Path | None = None,
     dem_src: rasterio.io.DatasetReader | None = None,
 ) -> AeqdGrid:
-    """Snap an axis-aligned AEQD rectangle that covers ``clip_box`` and the DEM."""
-    if dy_m is None:
-        dy_m = dx_m
+    """Snap an axis-aligned AEQD rectangle that covers ``aoi_envelope`` and the DEM."""
+    if cell_dy_m is None:
+        cell_dy_m = cell_dx_m
 
-    bounds = [aeqd_bounds_from_geometry(clip_box, local_crs, crs_in=crs_in)]
+    bounds = [aeqd_bounds_from_geometry(aoi_envelope, aeqd_crs, crs_in=crs_in)]
     if dem_src is not None:
-        bounds.append(aeqd_bounds_from_dem_src(dem_src, local_crs))
+        bounds.append(aeqd_bounds_from_dem_src(dem_src, aeqd_crs))
     elif dem_path is not None:
-        bounds.append(aeqd_bounds_from_dem(dem_path, local_crs))
-    minx, miny, maxx, maxy = merge_bounds(*bounds)
+        bounds.append(aeqd_bounds_from_dem(dem_path, aeqd_crs))
+    merged = merge_bounds(*bounds)
 
-    nx = int(math.ceil((maxx - minx) / dx_m))
-    ny = int(math.ceil((maxy - miny) / dy_m))
-    grid_maxx = minx + nx * dx_m
-    grid_maxy = miny + ny * dy_m
+    cell_count_x = int(math.ceil((merged.xmax_m - merged.xmin_m) / cell_dx_m))
+    cell_count_y = int(math.ceil((merged.ymax_m - merged.ymin_m) / cell_dy_m))
+    grid_extent_x_m = merged.xmin_m + cell_count_x * cell_dx_m
+    grid_extent_y_m = merged.ymin_m + cell_count_y * cell_dy_m
 
-    grid_transform = from_origin(minx, grid_maxy, dx_m, dy_m)
+    spec = GridSpec(
+        cell_count_x=cell_count_x,
+        cell_count_y=cell_count_y,
+        cell_dx_m=cell_dx_m,
+        cell_dy_m=cell_dy_m,
+        grid_origin_x_m=merged.xmin_m,
+        grid_origin_y_m=merged.ymin_m,
+    )
+    grid_transform = from_origin(
+        spec.grid_origin_x_m,
+        grid_extent_y_m,
+        spec.cell_dx_m,
+        spec.cell_dy_m,
+    )
     return AeqdGrid(
-        nx=nx,
-        ny=ny,
-        dx_m=dx_m,
-        dy_m=dy_m,
-        minx_m=minx,
-        miny_m=miny,
-        maxx_m=grid_maxx,
-        maxy_m=grid_maxy,
+        spec=spec,
+        grid_extent_x_m=grid_extent_x_m,
+        grid_extent_y_m=grid_extent_y_m,
         transform=grid_transform,
-        local_crs=local_crs,
+        aeqd_crs=aeqd_crs,
     )
 
 
-def aeqd_cell_center(grid: AeqdGrid, i: int, j: int) -> tuple[float, float]:
-    """Return the AEQD center of model cell ``(i, j)`` (``j=0`` is south)."""
-    x_m = grid.minx_m + (i + 0.5) * grid.dx_m
-    y_m = grid.miny_m + (j + 0.5) * grid.dy_m
-    return x_m, y_m
+def aeqd_cell_center(grid: AeqdGrid, col_i: int, row_j: int) -> tuple[float, float]:
+    """Return the AEQD center of model cell ``(col_i, row_j)`` (``row_j=0`` is south)."""
+    spec = grid.spec
+    aeqd_x_m = spec.grid_origin_x_m + (col_i + 0.5) * spec.cell_dx_m
+    aeqd_y_m = spec.grid_origin_y_m + (row_j + 0.5) * spec.cell_dy_m
+    return aeqd_x_m, aeqd_y_m
 
 
 def resample_dem_to_aeqd_src(
@@ -191,14 +186,15 @@ def resample_dem_to_aeqd_src(
     grid: AeqdGrid,
 ) -> np.ndarray:
     """Bilinear-resample ``src`` onto ``grid``; nodata → ``NaN``."""
-    dst = np.full((grid.ny, grid.nx), np.nan, dtype=np.float64)
+    spec = grid.spec
+    dst = np.full((spec.cell_count_y, spec.cell_count_x), np.nan, dtype=np.float64)
     reproject(
         source=rasterio.band(src, 1),
         destination=dst,
         src_transform=src.transform,
         src_crs=src.crs,
         dst_transform=grid.transform,
-        dst_crs=grid.local_crs,
+        dst_crs=grid.aeqd_crs,
         src_nodata=src.nodata,
         dst_nodata=np.nan,
         resampling=Resampling.bilinear,
@@ -223,13 +219,14 @@ def write_aeqd_geotiff(
     nodata: float | None = np.nan,
 ) -> None:
     """Write the AEQD elevation lattice that was encoded into ``.ELV``."""
+    spec = grid.spec
     profile = {
         "driver": "GTiff",
         "dtype": "float64",
         "count": 1,
-        "width": grid.nx,
-        "height": grid.ny,
-        "crs": grid.local_crs,
+        "width": spec.cell_count_x,
+        "height": spec.cell_count_y,
+        "crs": grid.aeqd_crs,
         "transform": grid.transform,
         "nodata": nodata,
     }

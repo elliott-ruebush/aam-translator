@@ -18,6 +18,7 @@ from .constants import (
     FT_PER_M,
     NMBGF_FLOAT,
 )
+from .grid_spec import GridSpec
 
 if TYPE_CHECKING:
     from .write_elv import ElvWriteResult
@@ -27,14 +28,9 @@ if TYPE_CHECKING:
 class TerrainResult:
     """State after writing an ELV grid aligned to an AOI."""
 
-    nx: int
-    ny: int
-    elv_dx_m: float
-    elv_dy_m: float
+    spec: GridSpec
+    aeqd_crs: CRS
     elv_header_feet: bool
-    elv_world_minx_m: float
-    elv_world_miny_m: float
-    local_crs: CRS
     elv_path: str
     imp_path: str | None = None
     clip_tif_path: str | None = None
@@ -48,7 +44,7 @@ class TerrainResult:
         cls,
         elv: ElvWriteResult,
         *,
-        local_crs: CRS,
+        aeqd_crs: CRS,
         elv_path: str,
         imp_path: str | None = None,
         clip_tif_path: str | None = None,
@@ -63,14 +59,9 @@ class TerrainResult:
 
             clip_tif_path = clip_path_for_elv(elv_path)
         return cls(
-            nx=elv.nx,
-            ny=elv.ny,
-            elv_dx_m=elv.elv_dx_m,
-            elv_dy_m=elv.elv_dy_m,
-            elv_header_feet=elv.elv_header_feet,
-            elv_world_minx_m=elv.elv_world_minx_m,
-            elv_world_miny_m=elv.elv_world_miny_m,
-            local_crs=local_crs,
+            spec=elv.spec,
+            aeqd_crs=aeqd_crs,
+            elv_header_feet=elv.header_feet,
             elv_path=elv_path,
             imp_path=imp_path,
             clip_tif_path=clip_tif_path,
@@ -81,24 +72,48 @@ class TerrainResult:
         )
 
 
-def build_local_crs(aoi_geom: BaseGeometry, crs_in: str = "EPSG:4326") -> CRS:
+def build_aeqd_crs(aoi: BaseGeometry, crs_in: str = "EPSG:4326") -> CRS:
     """Build an azimuthal equidistant CRS from the AOI envelope centroid."""
-    clip_box = aoi_clip_box(aoi_geom)
-    lon0, lat0 = clip_box.centroid.x, clip_box.centroid.y
+    envelope = aoi_envelope(aoi)
+    lon0, lat0 = envelope.centroid.x, envelope.centroid.y
     return CRS.from_proj4(
         f"+proj=aeqd +lat_0={lat0} +lon_0={lon0} +datum=WGS84 +units=m +no_defs",
     )
 
 
-def aoi_clip_box(aoi_geom: BaseGeometry) -> BaseGeometry:
+def aoi_envelope(aoi: BaseGeometry) -> BaseGeometry:
     """Return the minimum bounding rectangle of the AOI."""
-    return aoi_geom.envelope
+    return aoi.envelope
 
 
 @lru_cache(maxsize=32)
-def _wgs84_to_local_transformer(crs_key: str) -> Transformer:
-    """Return a cached WGS84→local CRS transformer keyed by CRS WKT."""
+def _wgs84_to_aeqd_transformer(crs_key: str) -> Transformer:
+    """Return a cached WGS84→AEQD transformer keyed by CRS WKT."""
     return Transformer.from_crs("EPSG:4326", CRS.from_wkt(crs_key), always_xy=True)
+
+
+def _wgs84_to_aeqd_m(aeqd_crs: CRS, lon: float, lat: float) -> tuple[float, float]:
+    """Convert WGS84 lon/lat to AEQD plane coordinates in meters."""
+    tf = _wgs84_to_aeqd_transformer(aeqd_crs.to_wkt())
+    return tf.transform(lon, lat)
+
+
+def _aeqd_m_to_model_ij(
+    spec: GridSpec,
+    aeqd_x_m: float,
+    aeqd_y_m: float,
+) -> tuple[float, float]:
+    """Convert AEQD meters to fractional model column/row indices."""
+    col_i = (aeqd_x_m - spec.grid_origin_x_m) / spec.cell_dx_m
+    row_j = (aeqd_y_m - spec.grid_origin_y_m) / spec.cell_dy_m
+    return col_i, row_j
+
+
+def _model_ij_to_ft(spec: GridSpec, col_i: float, row_j: float) -> tuple[float, float]:
+    """Convert fractional model column/row indices to AAM model feet."""
+    model_x_ft = col_i * spec.cell_dx_m * FT_PER_M
+    model_y_ft = row_j * spec.cell_dy_m * FT_PER_M
+    return model_x_ft, model_y_ft
 
 
 def lonlat_to_model_ft(
@@ -107,19 +122,16 @@ def lonlat_to_model_ft(
     lat: float,
 ) -> tuple[float, float]:
     """Convert WGS84 lon/lat to AAM model feet on the ELV grid."""
-    tf = _wgs84_to_local_transformer(terrain.local_crs.to_wkt())
-    x_m, y_m = tf.transform(lon, lat)
-    i = (x_m - terrain.elv_world_minx_m) / terrain.elv_dx_m
-    j = (y_m - terrain.elv_world_miny_m) / terrain.elv_dy_m
-    x_ft = i * terrain.elv_dx_m * FT_PER_M
-    y_ft = j * terrain.elv_dy_m * FT_PER_M
-    return x_ft, y_ft
+    aeqd_x_m, aeqd_y_m = _wgs84_to_aeqd_m(terrain.aeqd_crs, lon, lat)
+    col_i, row_j = _aeqd_m_to_model_ij(terrain.spec, aeqd_x_m, aeqd_y_m)
+    return _model_ij_to_ft(terrain.spec, col_i, row_j)
 
 
 def elv_extent_ft(terrain: TerrainResult) -> tuple[float, float]:
     """Return the ELV upper-right corner in feet using float32 cell sizes."""
-    dx32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, terrain.elv_dx_m))[0]
-    dy32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, terrain.elv_dy_m))[0]
-    elv_x = terrain.nx * dx32 * FT_PER_M
-    elv_y = terrain.ny * dy32 * FT_PER_M
+    spec = terrain.spec
+    dx32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, spec.cell_dx_m))[0]
+    dy32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, spec.cell_dy_m))[0]
+    elv_x = spec.cell_count_x * dx32 * FT_PER_M
+    elv_y = spec.cell_count_y * dy32 * FT_PER_M
     return elv_x, elv_y

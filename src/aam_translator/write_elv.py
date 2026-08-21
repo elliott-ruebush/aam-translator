@@ -20,6 +20,7 @@ from .aeqd_grid import (
     resample_dem_to_aeqd_src,
     write_aeqd_geotiff,
 )
+from .grid_spec import GridSpec
 from .nmbgf_io import (
     NmbgfGridSpec,
     build_nmbgf_grid_spec,
@@ -38,10 +39,7 @@ logger = logging.getLogger(__name__)
 class ElvGeoref:
     """Horizontal georeferencing for the ELV grid in AEQD meters."""
 
-    world_minx_m: float
-    world_miny_m: float
-    dx_m: float
-    dy_m: float
+    spec: GridSpec
     sw_lon: float
     sw_lat: float
 
@@ -57,13 +55,8 @@ class ElvGridSpec(NmbgfGridSpec):
 class ElvWriteResult:
     """State returned after a successful ``.ELV`` write."""
 
-    nx: int
-    ny: int
-    elv_dx_m: float
-    elv_dy_m: float
-    elv_header_feet: bool
-    elv_world_minx_m: float
-    elv_world_miny_m: float
+    spec: GridSpec
+    header_feet: bool
 
 
 def clip_path_for_elv(elv_file: str | Path) -> str:
@@ -74,35 +67,30 @@ def clip_path_for_elv(elv_file: str | Path) -> str:
 
 def georef_from_aeqd_grid(grid: AeqdGrid) -> ElvGeoref:
     """Derive ELV georef tags from a snapped AEQD lattice."""
-    to_wgs84 = Transformer.from_crs(grid.local_crs, "EPSG:4326", always_xy=True)
-    sw_lon, sw_lat = to_wgs84.transform(grid.minx_m, grid.miny_m)
-    return ElvGeoref(
-        world_minx_m=grid.minx_m,
-        world_miny_m=grid.miny_m,
-        dx_m=grid.dx_m,
-        dy_m=grid.dy_m,
-        sw_lon=sw_lon,
-        sw_lat=sw_lat,
-    )
+    to_wgs84 = Transformer.from_crs(grid.aeqd_crs, "EPSG:4326", always_xy=True)
+    spec = grid.spec
+    sw_lon, sw_lat = to_wgs84.transform(spec.grid_origin_x_m, spec.grid_origin_y_m)
+    return ElvGeoref(spec=spec, sw_lon=sw_lon, sw_lat=sw_lat)
 
 
 def build_elv_grid_spec(
-    georef: ElvGeoref, width: int, height: int, *, to_feet: bool,
+    georef: ElvGeoref, *, to_feet: bool,
 ) -> ElvGridSpec:
     """Header cell spacing and units tag from metric georef."""
-    spec = build_nmbgf_grid_spec(
-        width=width,
-        height=height,
-        dx_m=georef.dx_m,
-        dy_m=georef.dy_m,
+    spec = georef.spec
+    nmbgf_spec = build_nmbgf_grid_spec(
+        width=spec.cell_count_x,
+        height=spec.cell_count_y,
+        dx_m=spec.cell_dx_m,
+        dy_m=spec.cell_dy_m,
         header_feet=to_feet,
     )
     return ElvGridSpec(
-        width=spec.width,
-        height=spec.height,
-        dx_out=spec.dx_out,
-        dy_out=spec.dy_out,
-        units_tag=spec.units_tag,
+        width=nmbgf_spec.width,
+        height=nmbgf_spec.height,
+        dx_out=nmbgf_spec.dx_out,
+        dy_out=nmbgf_spec.dy_out,
+        units_tag=nmbgf_spec.units_tag,
         to_feet=to_feet,
     )
 
@@ -155,8 +143,8 @@ def write_nmbgf_elv_file(
     logger.info(".ELV file saved to %s", elv_file)
 
 
-def _reference_point(clip_box: BaseGeometry) -> tuple[float, float]:
-    centroid = clip_box.centroid
+def _aoi_centroid_lonlat(aoi_envelope: BaseGeometry) -> tuple[float, float]:
+    centroid = aoi_envelope.centroid
     return centroid.x, centroid.y
 
 
@@ -164,23 +152,25 @@ def write_elv_from_dem(
     dem_path: str | Path,
     elv_file: str | Path,
     *,
-    clip_box: BaseGeometry,
+    aoi_envelope: BaseGeometry,
     crs_in: str | CRS,
-    local_crs: CRS,
+    aeqd_crs: CRS,
     title: str = "AAM elevation grid",
     z0: float | None = None,
     to_feet: bool = True,
     nodata_policy: str = "edge",
 ) -> ElvWriteResult:
     """End-to-end: resample parent DEM onto AEQD → ``scenario_clip.tif`` → ``.ELV``."""
-    ref_lon, ref_lat = _reference_point(clip_box)
+    ref_lon, ref_lat = _aoi_centroid_lonlat(aoi_envelope)
     with rasterio.open(dem_path) as dem_src:
-        dx_m = dem_posting_meters_from_src(dem_src, ref_lon=ref_lon, ref_lat=ref_lat)
+        cell_dx_m = dem_posting_meters_from_src(
+            dem_src, ref_lon=ref_lon, ref_lat=ref_lat,
+        )
         assert_aoi_within_dem_src(
-            clip_box, dem_src, local_crs, crs_in=crs_in, tol_m=dx_m,
+            aoi_envelope, dem_src, aeqd_crs, crs_in=crs_in, tol_m=cell_dx_m,
         )
         grid = build_aeqd_grid(
-            clip_box, local_crs, dx_m, crs_in=crs_in, dem_src=dem_src,
+            aoi_envelope, aeqd_crs, cell_dx_m, crs_in=crs_in, dem_src=dem_src,
         )
         elevation_m = resample_dem_to_aeqd_src(dem_src, grid)
         elevation_m = prepare_elevation_array(
@@ -191,18 +181,19 @@ def write_elv_from_dem(
     write_aeqd_geotiff(clipped_tif, grid, elevation_m)
 
     georef = georef_from_aeqd_grid(grid)
-    spec = build_elv_grid_spec(georef, grid.nx, grid.ny, to_feet=to_feet)
+    spec = build_elv_grid_spec(georef, to_feet=to_feet)
+    grid_spec = georef.spec
     logger.info(
         (
-            "Writing .ELV grid %s x %s; AEQD lower-left (m)=%s,%s; "
+            "Writing .ELV grid %s x %s; grid origin (m)=%s,%s; "
             "cell (m)=%s,%s; SW (deg)=%s,%s"
         ),
         spec.width,
         spec.height,
-        georef.world_minx_m,
-        georef.world_miny_m,
-        georef.dx_m,
-        georef.dy_m,
+        grid_spec.grid_origin_x_m,
+        grid_spec.grid_origin_y_m,
+        grid_spec.cell_dx_m,
+        grid_spec.cell_dy_m,
         georef.sw_lon,
         georef.sw_lat,
     )
@@ -210,12 +201,4 @@ def write_elv_from_dem(
         elv_file, title=title, spec=spec, elevation_m=elevation_m,
     )
 
-    return ElvWriteResult(
-        nx=spec.width,
-        ny=spec.height,
-        elv_dx_m=georef.dx_m,
-        elv_dy_m=georef.dy_m,
-        elv_header_feet=spec.to_feet,
-        elv_world_minx_m=georef.world_minx_m,
-        elv_world_miny_m=georef.world_miny_m,
-    )
+    return ElvWriteResult(spec=grid_spec, header_feet=spec.to_feet)
