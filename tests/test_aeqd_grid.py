@@ -10,10 +10,10 @@ import pytest
 from pyproj import Transformer
 
 from aam_translator.aeqd_grid import (
+    DemOracle,
     aeqd_cell_center,
     build_aeqd_grid,
     resample_dem_to_aeqd,
-    sample_dem_at_aeqd_point,
 )
 from aam_translator.context import build_local_crs
 from dem_fixtures import (
@@ -96,12 +96,13 @@ def test_resample_matches_independent_sample(tmp_path: Path) -> None:
     grid = build_aeqd_grid(aoi, local_crs, res_m, dem_path=dem_path)
     warped = resample_dem_to_aeqd(dem_path, grid)
 
-    for model_j in (1, grid.ny // 2, grid.ny - 2):
-        for model_i in (1, grid.nx // 2, grid.nx - 2):
-            cx, cy = aeqd_cell_center(grid, model_i, model_j)
-            expected = sample_dem_at_aeqd_point(dem_path, grid, cx, cy)
-            if np.isnan(expected):
-                continue
-            row = grid.ny - 1 - model_j
-            actual = float(warped[row, model_i])
-            assert actual == pytest.approx(expected, abs=GDAL_ORACLE_TOLERANCE_M)
+    with DemOracle(dem_path) as oracle:
+        for model_j in (1, grid.ny // 2, grid.ny - 2):
+            for model_i in (1, grid.nx // 2, grid.nx - 2):
+                cx, cy = aeqd_cell_center(grid, model_i, model_j)
+                expected = oracle.sample(grid, cx, cy)
+                if np.isnan(expected):
+                    continue
+                row = grid.ny - 1 - model_j
+                actual = float(warped[row, model_i])
+                assert actual == pytest.approx(expected, abs=GDAL_ORACLE_TOLERANCE_M)

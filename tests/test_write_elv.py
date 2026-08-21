@@ -10,7 +10,7 @@ import pytest
 import rasterio
 from pyproj import Transformer
 
-from aam_translator.aeqd_grid import aeqd_cell_center, sample_dem_at_aeqd_point
+from aam_translator.aeqd_grid import DemOracle, aeqd_cell_center, resample_dem_to_aeqd, sample_dem_at_aeqd_point
 from aam_translator.constants import FT_PER_M
 from aam_translator.context import aoi_clip_box, build_local_crs
 from aam_translator.nmbgf_io import iter_grid_cells, read_nmbgf_header
@@ -36,10 +36,19 @@ def zalt_model_array_m(hdr, nx: int, ny: int) -> list[list[float]]:
     return out
 
 
-def clip_value_at_model_cell(clip_path: Path, ny: int, model_i: int, model_j: int) -> float:
+def clip_m_at_model_cell(
+    clip_data: np.ndarray,
+    ny: int,
+    model_i: int,
+    model_j: int,
+) -> float:
     row = ny - 1 - model_j
+    return float(clip_data[row, model_i])
+
+
+def clip_value_at_model_cell(clip_path: Path, ny: int, model_i: int, model_j: int) -> float:
     with rasterio.open(clip_path) as clip:
-        return float(clip.read(1)[row, model_i])
+        return clip_m_at_model_cell(clip.read(1), ny, model_i, model_j)
 
 
 def test_write_elv_from_dem(tmp_path: Path, tiny_dem_path, tiny_aoi_geom) -> None:
@@ -127,16 +136,23 @@ def test_write_elv_coregisters_with_parent_dem_at_high_latitude(tmp_path: Path) 
     grid = grid_from_elv_result(result, local_crs)
     zalt_m = zalt_model_array_m(hdr, result.nx, result.ny)
 
+    with rasterio.open(clip_tif) as clip:
+        assert clip.crs == local_crs
+        assert clip.width == result.nx
+        assert clip.height == result.ny
+        clip_data = clip.read(1)
+
+    parent_on_grid = resample_dem_to_aeqd(dem_path, grid)
+
     max_err = 0.0
     compared = 0
-    stride = 3
-    for model_j in range(1, result.ny - 1, stride):
-        for model_i in range(1, result.nx - 1, stride):
-            clip_m = clip_value_at_model_cell(Path(clip_tif), result.ny, model_i, model_j)
+    for model_j in range(1, result.ny - 1):
+        for model_i in range(1, result.nx - 1):
+            row = result.ny - 1 - model_j
+            clip_m = clip_m_at_model_cell(clip_data, result.ny, model_i, model_j)
             assert zalt_m[model_j][model_i] == pytest.approx(clip_m, abs=0.01)
 
-            cx, cy = aeqd_cell_center(grid, model_i, model_j)
-            expected = sample_dem_at_aeqd_point(dem_path, grid, cx, cy)
+            expected = float(parent_on_grid[row, model_i])
             if np.isnan(expected):
                 continue
             err = abs(clip_m - expected)
@@ -147,25 +163,21 @@ def test_write_elv_coregisters_with_parent_dem_at_high_latitude(tmp_path: Path) 
     assert compared > 100
     assert max_err < 1.0
 
-    with rasterio.open(clip_tif) as clip:
-        assert clip.crs == local_crs
-        assert clip.width == result.nx
-        assert clip.height == result.ny
-
     # The old UTM-copy path indexed pixels as if they sat on an AEQD lattice aligned
     # with the UTM grid. At this latitude that misplaces samples by >10 m horizontally.
     model_i, model_j = result.nx // 2, result.ny // 2
     cx, cy = aeqd_cell_center(grid, model_i, model_j)
-    expected = sample_dem_at_aeqd_point(dem_path, grid, cx, cy)
-    assert not np.isnan(expected)
+    with DemOracle(dem_path) as oracle:
+        expected = oracle.sample(grid, cx, cy)
+        assert not np.isnan(expected)
 
-    with rasterio.open(dem_path) as src:
-        res = abs(src.transform.a)
-        utm_to_aeqd = Transformer.from_crs(src.crs, local_crs, always_xy=True)
-        legacy_cx, legacy_cy = utm_to_aeqd.transform(
-            src.bounds.left + (model_i + 0.5) * res,
-            src.bounds.bottom + (model_j + 0.5) * res,
-        )
+        with rasterio.open(dem_path) as src:
+            res = abs(src.transform.a)
+            utm_to_aeqd = Transformer.from_crs(src.crs, local_crs, always_xy=True)
+            legacy_cx, legacy_cy = utm_to_aeqd.transform(
+                src.bounds.left + (model_i + 0.5) * res,
+                src.bounds.bottom + (model_j + 0.5) * res,
+            )
         horiz_m = math.hypot(cx - legacy_cx, cy - legacy_cy)
         assert horiz_m > 10.0
-        assert abs(expected - sample_dem_at_aeqd_point(dem_path, grid, legacy_cx, legacy_cy)) > 2.0
+        assert abs(expected - oracle.sample(grid, legacy_cx, legacy_cy)) > 2.0
