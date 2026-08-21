@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import rasterio
 from pyproj import Transformer
 
 from aam_translator.constants import FT_PER_M
@@ -17,6 +16,7 @@ from aam_translator.context import (
     lonlat_to_model_ft,
 )
 from aam_translator.write_elv import clip_path_for_elv, write_elv_from_dem
+from dem_fixtures import grid_from_elv_result
 
 
 def test_build_local_crs_returns_valid_crs(tiny_aoi_geom) -> None:
@@ -41,6 +41,7 @@ def test_lonlat_to_model_ft_corners(tmp_path: Path, tiny_dem_path, tiny_aoi_geom
         crs_in="EPSG:4326",
         local_crs=local_crs,
     )
+    grid = grid_from_elv_result(result, local_crs)
     terrain = TerrainResult(
         nx=result.nx,
         ny=result.ny,
@@ -54,10 +55,9 @@ def test_lonlat_to_model_ft_corners(tmp_path: Path, tiny_dem_path, tiny_aoi_geom
         clip_tif_path=clip_path_for_elv(str(elv_path)),
     )
 
-    with rasterio.open(str(tiny_dem_path)) as src:
-        tf = Transformer.from_crs(src.crs, "EPSG:4326", always_xy=True)
-        sw_lon, sw_lat = tf.transform(src.bounds.left, src.bounds.bottom)
-        ne_lon, ne_lat = tf.transform(src.bounds.right, src.bounds.top)
+    to_wgs = Transformer.from_crs(local_crs, "EPSG:4326", always_xy=True)
+    sw_lon, sw_lat = to_wgs.transform(grid.minx_m, grid.miny_m)
+    ne_lon, ne_lat = to_wgs.transform(grid.maxx_m, grid.maxy_m)
 
     sw_x, sw_y = lonlat_to_model_ft(terrain, sw_lon, sw_lat)
     ne_x, ne_y = lonlat_to_model_ft(terrain, ne_lon, ne_lat)

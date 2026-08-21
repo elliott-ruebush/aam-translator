@@ -5,15 +5,20 @@ from __future__ import annotations
 import logging
 import struct
 from dataclasses import dataclass
+from pathlib import Path
 from typing import BinaryIO
 
 import numpy as np
-import rasterio
 from pyproj import CRS, Transformer
-from rasterio.mask import mask
 from shapely.geometry.base import BaseGeometry
-from shapely.ops import transform
 
+from .aeqd_grid import (
+    AeqdGrid,
+    build_aeqd_grid,
+    dem_posting_meters,
+    resample_dem_to_aeqd,
+    write_aeqd_geotiff,
+)
 from .constants import FT_PER_M
 from .nmbgf_io import (
     NmbgfGridSpec,
@@ -29,18 +34,8 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class ClippedDem:
-    """Metric DEM array clipped to the AOI, ready for ELV export."""
-
-    data: np.ndarray
-    profile: dict
-    nodata: float | None
-    crs: CRS
-
-
-@dataclass(frozen=True)
 class ElvGeoref:
-    """Horizontal georeferencing for the ELV grid in AEQD metres."""
+    """Horizontal georeferencing for the ELV grid in AEQD meters."""
 
     world_minx_m: float
     world_miny_m: float
@@ -70,69 +65,21 @@ class ElvWriteResult:
     elv_world_miny_m: float
 
 
-def clip_path_for_elv(elv_file: str) -> str:
+def clip_path_for_elv(elv_file: str | Path) -> str:
     """Sidecar GeoTIFF path written alongside ``scenario.elv``."""
-    return elv_file.replace(".elv", "_clip.tif")
+    path = Path(elv_file)
+    return str(path.with_name(f"{path.stem}_clip.tif"))
 
 
-def clip_dem_to_aoi(
-    dem_path: str,
-    clip_box: BaseGeometry,
-    *,
-    crs_in: str | CRS,
-) -> ClippedDem:
-    """Mask ``dem_path`` to ``clip_box`` (reprojecting the AOI into the DEM CRS)."""
-    logger.info("Clipping DEM from %s", dem_path)
-    with rasterio.open(dem_path) as src:
-        dem_crs = src.crs
-        if crs_in != dem_crs:
-            tf = Transformer.from_crs(crs_in, dem_crs, always_xy=True)
-            aoi_geom = transform(tf.transform, clip_box)
-        else:
-            aoi_geom = clip_box
-
-        dem_clip, dem_clip_transform = mask(
-            src, [aoi_geom], crop=True, filled=True, nodata=src.nodata,
-        )
-        arr = dem_clip[0]
-        profile = src.profile.copy()
-        profile.update({
-            "height": arr.shape[0],
-            "width": arr.shape[1],
-            "transform": dem_clip_transform,
-            "count": 1,
-        })
-
-    logger.info("DEM clipped to %s x %s cells", arr.shape[1], arr.shape[0])
-    return ClippedDem(
-        data=arr,
-        profile=profile,
-        nodata=profile.get("nodata"),
-        crs=dem_crs,
-    )
-
-
-def write_clip_geotiff(clipped_tif: str, clipped: ClippedDem) -> None:
-    """Persist the metric clip as ``scenario_clip.tif``."""
-    with rasterio.open(clipped_tif, "w", **clipped.profile) as dst:
-        dst.write(clipped.data, 1)
-
-
-def compute_elv_georef(raster, local_crs: CRS) -> ElvGeoref:
-    """Map the clipped raster SW corner into AEQD and WGS84."""
-    tf_dem_to_local = Transformer.from_crs(raster.crs, local_crs, always_xy=True)
-    world_minx_m, world_miny_m = tf_dem_to_local.transform(
-        raster.bounds.left, raster.bounds.bottom,
-    )
-    tf_raster_to_wgs84 = Transformer.from_crs(raster.crs, "EPSG:4326", always_xy=True)
-    sw_lon, sw_lat = tf_raster_to_wgs84.transform(
-        raster.bounds.left, raster.bounds.bottom,
-    )
+def georef_from_aeqd_grid(grid: AeqdGrid) -> ElvGeoref:
+    """Derive ELV georef tags from a snapped AEQD lattice."""
+    to_wgs84 = Transformer.from_crs(grid.local_crs, "EPSG:4326", always_xy=True)
+    sw_lon, sw_lat = to_wgs84.transform(grid.minx_m, grid.miny_m)
     return ElvGeoref(
-        world_minx_m=world_minx_m,
-        world_miny_m=world_miny_m,
-        dx_m=abs(raster.res[0]),
-        dy_m=abs(raster.res[1]),
+        world_minx_m=grid.minx_m,
+        world_miny_m=grid.miny_m,
+        dx_m=grid.dx_m,
+        dy_m=grid.dy_m,
         sw_lon=sw_lon,
         sw_lat=sw_lat,
     )
@@ -160,13 +107,13 @@ def build_elv_grid_spec(georef: ElvGeoref, width: int, height: int, *, to_feet: 
 
 
 def prepare_elevation_array(
-    raster,
+    elevation_m: np.ndarray,
     *,
     nodata_policy: str,
     z0: float | None,
 ) -> np.ndarray:
-    """Read, fill nodata, and optionally offset elevations (metres MSL)."""
-    data = fill_nodata(raster.read(1), raster.nodata, policy=nodata_policy)
+    """Fill nodata and optionally offset elevations (meters MSL)."""
+    data = fill_nodata(elevation_m, np.nan, policy=nodata_policy)
     if z0 is not None:
         data = data + z0
     return data
@@ -206,7 +153,7 @@ def write_nmbgf_elv_stream(
 
 
 def write_nmbgf_elv_file(
-    elv_file: str,
+    elv_file: str | Path,
     *,
     title: str,
     spec: ElvGridSpec,
@@ -217,9 +164,14 @@ def write_nmbgf_elv_file(
     logger.info(".ELV file saved to %s", elv_file)
 
 
+def _reference_point(clip_box: BaseGeometry) -> tuple[float, float]:
+    centroid = clip_box.centroid
+    return centroid.x, centroid.y
+
+
 def write_elv_from_dem(
-    dem_path: str,
-    elv_file: str,
+    dem_path: str | Path,
+    elv_file: str | Path,
     *,
     clip_box: BaseGeometry,
     crs_in: str | CRS,
@@ -229,33 +181,35 @@ def write_elv_from_dem(
     to_feet: bool = True,
     nodata_policy: str = "edge",
 ) -> ElvWriteResult:
-    """End-to-end: clip DEM → ``scenario_clip.tif`` → ``scenario.elv``."""
-    clipped = clip_dem_to_aoi(dem_path, clip_box, crs_in=crs_in)
-    clipped_tif = clip_path_for_elv(elv_file)
-    write_clip_geotiff(clipped_tif, clipped)
+    """End-to-end: resample parent DEM onto AEQD → ``scenario_clip.tif`` → ``.ELV``."""
+    ref_lon, ref_lat = _reference_point(clip_box)
+    dx_m = dem_posting_meters(dem_path, ref_lon=ref_lon, ref_lat=ref_lat)
+    grid = build_aeqd_grid(clip_box, local_crs, dx_m, crs_in=crs_in, dem_path=dem_path)
 
-    with rasterio.open(clipped_tif) as raster:
-        georef = compute_elv_georef(raster, local_crs)
-        spec = build_elv_grid_spec(
-            georef, raster.width, raster.height, to_feet=to_feet,
-        )
-        logger.info(
-            "Writing .ELV grid %s x %s; AEQD lower-left (m)=%s,%s; cell (m)=%s,%s; SW (deg)=%s,%s",
-            spec.width,
-            spec.height,
-            georef.world_minx_m,
-            georef.world_miny_m,
-            georef.dx_m,
-            georef.dy_m,
-            georef.sw_lon,
-            georef.sw_lat,
-        )
-        elevation_m = prepare_elevation_array(
-            raster, nodata_policy=nodata_policy, z0=z0,
-        )
-        write_nmbgf_elv_file(
-            elv_file, title=title, spec=spec, elevation_m=elevation_m,
-        )
+    elevation_m = resample_dem_to_aeqd(dem_path, grid)
+    elevation_m = prepare_elevation_array(
+        elevation_m, nodata_policy=nodata_policy, z0=z0,
+    )
+
+    clipped_tif = clip_path_for_elv(elv_file)
+    write_aeqd_geotiff(clipped_tif, grid, elevation_m)
+
+    georef = georef_from_aeqd_grid(grid)
+    spec = build_elv_grid_spec(georef, grid.nx, grid.ny, to_feet=to_feet)
+    logger.info(
+        "Writing .ELV grid %s x %s; AEQD lower-left (m)=%s,%s; cell (m)=%s,%s; SW (deg)=%s,%s",
+        spec.width,
+        spec.height,
+        georef.world_minx_m,
+        georef.world_miny_m,
+        georef.dx_m,
+        georef.dy_m,
+        georef.sw_lon,
+        georef.sw_lat,
+    )
+    write_nmbgf_elv_file(
+        elv_file, title=title, spec=spec, elevation_m=elevation_m,
+    )
 
     return ElvWriteResult(
         nx=spec.width,
