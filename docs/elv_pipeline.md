@@ -49,6 +49,8 @@ flowchart LR
 
 ``write_elv_from_dem`` builds a regular AEQD lattice, bilinear-resamples the parent DEM onto it, fills nodata **after** resample, and writes that grid to both ``_clip.tif`` (meters, ``local_crs``) and ``.ELV`` (feet).
 
+The ``_clip.tif`` sidecar is for debugging only (AAM does not read it). Each rerun overwrites it; if the file is open in a GIS viewer, the write may fail with a permission error until you close the viewer (most common on Windows).
+
 ## Constants
 
 - `FT_PER_M = 3.28084` (AAM / TERRAINCHK, **not** 3.280839895).
