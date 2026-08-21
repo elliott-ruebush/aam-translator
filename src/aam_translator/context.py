@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import struct
 from dataclasses import dataclass
+from functools import lru_cache
 
 from pyproj import CRS, Transformer
 from shapely.geometry.base import BaseGeometry
@@ -53,13 +54,19 @@ def aoi_clip_box(aoi_geom: BaseGeometry) -> BaseGeometry:
     return aoi_geom.envelope
 
 
+@lru_cache(maxsize=32)
+def _wgs84_to_local_transformer(crs_key: str) -> Transformer:
+    """Return a cached WGS84→local CRS transformer keyed by CRS WKT."""
+    return Transformer.from_crs("EPSG:4326", CRS.from_wkt(crs_key), always_xy=True)
+
+
 def lonlat_to_model_ft(
     terrain: TerrainResult,
     lon: float,
     lat: float,
 ) -> tuple[float, float]:
     """Convert WGS84 lon/lat to AAM model feet on the ELV grid."""
-    tf = Transformer.from_crs("EPSG:4326", terrain.local_crs, always_xy=True)
+    tf = _wgs84_to_local_transformer(terrain.local_crs.to_wkt())
     x_m, y_m = tf.transform(lon, lat)
     i = (x_m - terrain.elv_world_minx_m) / terrain.elv_dx_m
     j = (y_m - terrain.elv_world_miny_m) / terrain.elv_dy_m

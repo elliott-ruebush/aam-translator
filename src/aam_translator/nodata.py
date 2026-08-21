@@ -30,7 +30,10 @@ def fill_nodata(arr, nodata, policy: str = "edge") -> np.ndarray:
 
     valid = ~invalid
     if not valid.any():
-        warnings.warn("ELV clip has no valid elevation cells; filling with 0.0", stacklevel=2)
+        warnings.warn(
+            "ELV clip has no valid elevation cells; filling with 0.0",
+            stacklevel=2,
+        )
         out[invalid] = 0.0
         return out
 

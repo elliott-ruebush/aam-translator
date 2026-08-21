@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import BinaryIO
-import logging
-import struct
 
-from .constants import DEFAULT_FLOW_RESISTIVITY, FT_PER_M, NMBGF_FLOAT
+import numpy as np
+
+from .constants import DEFAULT_FLOW_RESISTIVITY, FT_PER_M
 from .nmbgf_io import (
     NmbgfGridSpec,
-    iter_grid_cells,
+    pack_nmbgf_payload,
     write_nmbgf_case_header,
     write_nmbgf_end,
     write_nmbgf_metric_header,
@@ -61,12 +62,6 @@ def build_imp_grid_spec(ctx: ImpGridContext) -> NmbgfGridSpec:
     )
 
 
-def iter_flow_values(width: int, height: int, flow_resistivity: float):
-    """Yield constant FLOW payload values in NMBGF cell order."""
-    for _i, _j in iter_grid_cells(width, height):
-        yield flow_resistivity
-
-
 def write_nmbgf_imp_stream(
     fp: BinaryIO,
     *,
@@ -78,17 +73,17 @@ def write_nmbgf_imp_stream(
     write_nmbgf_title(fp)
     write_nmbgf_case_header(fp, title=title, spec=spec)
     n_cells = spec.width * spec.height
-    write_nmbgf_metric_header(fp, mtrc_tag=b"Flow", payload_tag=b"FLOW", n_cells=n_cells)
+    write_nmbgf_metric_header(
+        fp, mtrc_tag=b"Flow", payload_tag=b"FLOW", n_cells=n_cells,
+    )
 
     logger.debug("Expecting %d cells to be written", n_cells)
-    count = 0
-    for val in iter_flow_values(spec.width, spec.height, flow_resistivity):
-        fp.write(struct.pack(NMBGF_FLOAT, val))
-        count += 1
-    logger.debug("Wrote %d cells", count)
+    flow_grid = np.full((spec.height, spec.width), flow_resistivity, dtype=np.float64)
+    fp.write(pack_nmbgf_payload(flow_grid))
+    logger.debug("Wrote %d cells", n_cells)
 
     write_nmbgf_end(fp)
-    return count
+    return n_cells
 
 
 def write_nmbgf_imp_file(

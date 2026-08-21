@@ -14,9 +14,9 @@ from aam_translator.nmbgf_io import (
     write_nmbgf_case_header,
     write_nmbgf_end,
     write_nmbgf_metric_header,
-    write_nmbgf_payload,
     write_nmbgf_title,
 )
+from nmbgf_helpers import pack_nmbgf_test_payload
 
 _TITLE_PREFIX = b"TITL\x04\x00\x00\x00GridVers\x01\x00\x00\x00\x00\x00\x00\x00"
 _SPEC = NmbgfGridSpec(
@@ -47,7 +47,13 @@ def _write_nmbgf(
             payload_tag=payload_tag,
             n_cells=len(values),
         )
-        write_nmbgf_payload(fp, values)
+        fp.write(
+            pack_nmbgf_test_payload(
+                values,
+                width=spec.width,
+                height=spec.height,
+            )
+        )
         write_nmbgf_end(fp)
 
 

@@ -19,8 +19,8 @@ from aam_translator.context import build_local_crs
 from dem_fixtures import (
     TRIPLE_LAKES_LAT,
     TRIPLE_LAKES_LON,
-    write_utm_planar_ramp_dem,
     wgs84_box_from_utm_extent,
+    write_utm_planar_ramp_dem,
 )
 
 GDAL_ORACLE_TOLERANCE_M = 0.05

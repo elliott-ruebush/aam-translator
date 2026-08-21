@@ -19,6 +19,8 @@ def test_write_terrain_writes_elv_imp_and_clip(
     terrain = write_terrain(str(tiny_dem_path), tiny_aoi_geom, tmp_path)
 
     assert Path(terrain.elv_path).is_file()
+    assert terrain.imp_path is not None
+    assert terrain.clip_tif_path is not None
     assert Path(terrain.imp_path).is_file()
     assert Path(terrain.clip_tif_path).is_file()
 
@@ -49,6 +51,7 @@ def test_write_aam_inputs_writes_all_three_files(
     )
 
     assert Path(result.terrain.elv_path).is_file()
+    assert result.terrain.imp_path is not None
     assert Path(result.terrain.imp_path).is_file()
     assert Path(result.inp_path).is_file()
     assert "COMPUTEPOI" in Path(result.inp_path).read_text()

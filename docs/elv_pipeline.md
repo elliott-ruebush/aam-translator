@@ -33,10 +33,10 @@ flowchart LR
 
 ## Intended pipeline
 
-1. **Inputs:** DEM + AOI (WGS84) + cell size (typically 30 m). Posting is metric — never put degrees in `DIDJ`.
+1. **Inputs:** parent DEM + AOI (WGS84). Cell size `dx`/`dy` comes from the DEM posting at the AOI centroid (`dem_posting_meters_from_src`) — metric only; never put degrees in `DIDJ`.
 2. **Build AEQD** from the AOI envelope centroid (`build_local_crs`).
-3. **Window** the source DEM in its native CRS if you like. That window is **not** the ELV grid.
-4. Transform the AOI envelope to AEQD. Take the axis-aligned bbox. `nx = ceil(width/dx)`, `ny = ceil(height/dy)` so the rectangle **covers** the bbox.
+3. **Window** the source DEM in its native CRS if you like (optional preprocess). That window is **not** the ELV grid; the writer reprojects the open raster via GDAL warp.
+4. Transform the AOI envelope **and** parent DEM footprint to AEQD; take the axis-aligned bbox of their **union** (`build_aeqd_grid`). `nx = ceil(width/dx)`, `ny = ceil(height/dy)` so the rectangle **covers** that bbox. Reject AOIs that extend past the DEM (`assert_aoi_within_dem_src`).
 5. Cell **corners:** SW of cell `(0,0)` is the model origin. Cell **centers** (where Z is sampled):
 
    `center = (minx + (i + 0.5)·dx, miny + (j + 0.5)·dy)`
@@ -58,7 +58,7 @@ flowchart LR
 
 Synthetic geometry (UTM zone 6N, ~9 km × 4 km at 63.73°N, −148.90°). Not a Denali DEM.
 
-**Figure 1 — UTM rectangle vs true AEQD bbox (the horizontal lie).** Current writer indexes UTM pixels as if they sat on the dashed rectangle.
+**Figure 1 — UTM rectangle vs true AEQD bbox (the horizontal lie).** Legacy UTM-index copy treated pixels as if they sat on the dashed rectangle; the current writer bilinear-resamples onto AEQD cell centers (see [Current behavior](#current-behavior)).
 
 ![UTM tile in AEQD vs fake rectangle vs true bbox](figures/utm_vs_aeqd.png)
 

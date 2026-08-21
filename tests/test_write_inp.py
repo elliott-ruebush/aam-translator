@@ -113,7 +113,9 @@ def test_setup_para_ur_corner_inside_elv_extent(terrain: TerrainResult) -> None:
     )
 
 
-def test_write_inp_track_and_poi_coordinates(terrain: TerrainResult, tmp_path: Path) -> None:
+def test_write_inp_track_and_poi_coordinates(
+    terrain: TerrainResult, tmp_path: Path,
+) -> None:
     track_lon, track_lat = -177.0001, 54.1485
     poi_lon, poi_lat = -176.9995, 54.1488
     alt_m = 123.456
@@ -153,7 +155,9 @@ def test_write_inp_track_and_poi_coordinates(terrain: TerrainResult, tmp_path: P
     assert float(poi_row[36:44]) == pytest.approx(expected_agl_ft, abs=0.01)
 
 
-def test_write_inp_track_altitude_no_pad(terrain: TerrainResult, tmp_path: Path) -> None:
+def test_write_inp_track_altitude_no_pad(
+    terrain: TerrainResult, tmp_path: Path,
+) -> None:
     alt_m = 321.987
     inp_path = tmp_path / "scenario.inp"
     write_inp(

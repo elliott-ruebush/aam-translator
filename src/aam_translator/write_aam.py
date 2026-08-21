@@ -22,6 +22,18 @@ from .write_inp import PoiPoint, TrackPoint, write_inp
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_basename(basename: str, *, kind: str) -> str:
+    """Return a safe filename component; reject empty or path-like names."""
+    if not isinstance(basename, str) or not basename.strip():
+        raise ValueError(f"{kind} must be a non-empty string")
+    name = basename.strip()
+    if not name or name in (".", ".."):
+        raise ValueError(f"invalid {kind}: {basename!r}")
+    if "/" in name or "\\" in name or name != Path(name).name:
+        raise ValueError(f"invalid {kind}: {basename!r}")
+    return name
+
+
 @dataclass
 class AamInputs:
     """Paths and terrain state after writing a complete AAM case."""
@@ -54,8 +66,8 @@ def write_terrain(
 
     clip_box = aoi_clip_box(aoi)
     local_crs = build_local_crs(aoi, crs_in=crs_in)
-    elv_path = out / elv_basename
-    imp_path = out / imp_basename
+    elv_path = out / _sanitize_basename(elv_basename, kind="elv_basename")
+    imp_path = out / _sanitize_basename(imp_basename, kind="imp_basename")
 
     elv_result = write_elv_from_dem(
         str(dem_path),
@@ -113,11 +125,11 @@ def write_aam_inputs(
     inp_basename: str = "scenario.inp",
     **terrain_kwargs,
 ) -> AamInputs:
-    """Write terrain files and a single-event ``.INP`` file (``COMPUTEPOI`` mode) in one call."""
+    """Write terrain files and a single-event ``.INP`` (``COMPUTEPOI`` mode)."""
     terrain = write_terrain(dem_path, aoi, out_dir, crs_in=crs_in, **terrain_kwargs)
     inp_path = write_inp(
         terrain,
-        Path(out_dir) / inp_basename,
+        Path(out_dir) / _sanitize_basename(inp_basename, kind="inp_basename"),
         track=track,
         pois=pois,
         source_id=source_id,

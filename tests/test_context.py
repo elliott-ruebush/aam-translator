@@ -21,15 +21,19 @@ from dem_fixtures import grid_from_elv_result
 
 def test_build_local_crs_returns_valid_crs(tiny_aoi_geom) -> None:
     crs = build_local_crs(tiny_aoi_geom)
-    assert "aeqd" in crs.to_proj4().lower()
     assert crs.is_projected
+    operation = crs.coordinate_operation
+    assert operation is not None
+    assert operation.method_name == "Azimuthal Equidistant"
     tf = Transformer.from_crs("EPSG:4326", crs, always_xy=True)
     x, y = tf.transform(-177.0, 54.0)
     assert x == pytest.approx(0.0, abs=500_000.0)
     assert y == pytest.approx(0.0, abs=500_000.0)
 
 
-def test_lonlat_to_model_ft_corners(tmp_path: Path, tiny_dem_path, tiny_aoi_geom) -> None:
+def test_lonlat_to_model_ft_corners(
+    tmp_path: Path, tiny_dem_path, tiny_aoi_geom,
+) -> None:
     clip_box = aoi_clip_box(tiny_aoi_geom)
     local_crs = build_local_crs(tiny_aoi_geom)
     elv_path = tmp_path / "scenario.elv"

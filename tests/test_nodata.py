@@ -34,6 +34,14 @@ def test_edge_copies_nearest_valid():
     np.testing.assert_array_equal(out[0, [0, 2]], [10.0, 30.0])
 
 
+def test_edge_never_fills_zero_from_valid_neighbors():
+    arr = np.array([[5.0, np.nan, 7.0], [np.nan, np.nan, np.nan]])
+    out = fill_nodata(arr, nodata=None, policy="edge")
+    filled = out[np.isnan(arr)]
+    assert np.all(filled != 0.0)
+    assert set(filled.tolist()) <= {5.0, 7.0}
+
+
 def test_unknown_policy_raises():
     arr = np.array([[1.0, np.nan]])
     with pytest.raises(ValueError, match="unknown nodata policy"):

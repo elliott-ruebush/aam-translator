@@ -10,7 +10,12 @@ import pytest
 import rasterio
 from pyproj import Transformer
 
-from aam_translator.aeqd_grid import DemOracle, aeqd_cell_center, resample_dem_to_aeqd, sample_dem_at_aeqd_point
+from aam_translator.aeqd_grid import (
+    DemOracle,
+    aeqd_cell_center,
+    resample_dem_to_aeqd,
+    sample_dem_at_aeqd_point,
+)
 from aam_translator.constants import FT_PER_M
 from aam_translator.context import aoi_clip_box, build_local_crs
 from aam_translator.nmbgf_io import iter_grid_cells, read_nmbgf_header
@@ -19,8 +24,8 @@ from dem_fixtures import (
     TRIPLE_LAKES_LAT,
     TRIPLE_LAKES_LON,
     grid_from_elv_result,
-    write_utm_planar_ramp_dem,
     wgs84_box_from_utm_extent,
+    write_utm_planar_ramp_dem,
 )
 
 # Spot checks against the GDAL warp oracle tolerate float32/float64 noise only.
@@ -46,7 +51,9 @@ def clip_m_at_model_cell(
     return float(clip_data[row, model_i])
 
 
-def clip_value_at_model_cell(clip_path: Path, ny: int, model_i: int, model_j: int) -> float:
+def clip_value_at_model_cell(
+    clip_path: Path, ny: int, model_i: int, model_j: int,
+) -> float:
     with rasterio.open(clip_path) as clip:
         return clip_m_at_model_cell(clip.read(1), ny, model_i, model_j)
 
@@ -98,6 +105,51 @@ def test_write_elv_from_dem(tmp_path: Path, tiny_dem_path, tiny_aoi_geom) -> Non
     expected_m = sample_dem_at_aeqd_point(tiny_dem_path, grid, cx, cy)
     assert not np.isnan(expected_m)
     assert clip_m == pytest.approx(expected_m, abs=GDAL_ORACLE_TOLERANCE_M)
+
+
+def test_write_elv_clip_matches_zalt_payload(
+    tmp_path: Path, tiny_dem_path, tiny_aoi_geom
+) -> None:
+    """Every ZALT value equals scenario_clip.tif × FT_PER_M in writer cell order."""
+    clip_box = aoi_clip_box(tiny_aoi_geom)
+    local_crs = build_local_crs(tiny_aoi_geom)
+    elv_path = tmp_path / "scenario.elv"
+    clip_tif = clip_path_for_elv(elv_path)
+
+    result = write_elv_from_dem(
+        str(tiny_dem_path),
+        str(elv_path),
+        clip_box=clip_box,
+        crs_in="EPSG:4326",
+        local_crs=local_crs,
+    )
+
+    hdr = read_nmbgf_header(elv_path)
+    assert hdr.data_tag == "ZALT"
+    assert len(hdr.values) == result.nx * result.ny
+
+    with rasterio.open(clip_tif) as clip:
+        clip_data = clip.read(1)
+
+    for idx, (col, row) in enumerate(iter_grid_cells(result.nx, result.ny)):
+        clip_ft = float(clip_data[row, col]) * FT_PER_M
+        assert hdr.values[idx] == pytest.approx(clip_ft, rel=1e-5)
+
+
+def test_write_elv_raises_when_aoi_exceeds_dem(
+    tmp_path: Path, tiny_dem_path, tiny_aoi_geom,
+) -> None:
+    clip_box = aoi_clip_box(tiny_aoi_geom)
+    local_crs = build_local_crs(tiny_aoi_geom)
+    oversized = clip_box.buffer(0.05)  # ~5 km in degrees; tiny DEM is ~120 m across
+    with pytest.raises(ValueError, match="extends beyond parent DEM"):
+        write_elv_from_dem(
+            str(tiny_dem_path),
+            tmp_path / "scenario.elv",
+            clip_box=oversized,
+            crs_in="EPSG:4326",
+            local_crs=local_crs,
+        )
 
 
 def test_write_elv_coregisters_with_parent_dem_at_high_latitude(tmp_path: Path) -> None:

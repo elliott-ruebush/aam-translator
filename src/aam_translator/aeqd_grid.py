@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -51,17 +53,6 @@ def dem_posting_meters_from_src(
     return float(dx_m if abs(dx_m - dy_m) < 1e-6 else max(dx_m, dy_m))
 
 
-def dem_posting_meters(
-    dem_path: str | Path,
-    *,
-    ref_lon: float,
-    ref_lat: float,
-) -> float:
-    """Return the source DEM cell size in meters at ``(ref_lon, ref_lat)``."""
-    with rasterio.open(dem_path) as src:
-        return dem_posting_meters_from_src(src, ref_lon=ref_lon, ref_lat=ref_lat)
-
-
 def transform_geometry_to_crs(
     geom: BaseGeometry,
     *,
@@ -97,7 +88,10 @@ def aeqd_bounds_from_dem_src(
         (bounds.right, bounds.top),
         (bounds.left, bounds.top),
     ]
-    xs, ys = zip(*(to_aeqd.transform(x, y) for x, y in corners))
+    xs, ys = zip(
+        *(to_aeqd.transform(x, y) for x, y in corners),
+        strict=True,
+    )
     return min(xs), min(ys), max(xs), max(ys)
 
 
@@ -119,6 +113,29 @@ def merge_bounds(
     maxx = max(b[2] for b in bounds)
     maxy = max(b[3] for b in bounds)
     return minx, miny, maxx, maxy
+
+
+def assert_aoi_within_dem_src(
+    clip_box: BaseGeometry,
+    dem_src: rasterio.io.DatasetReader,
+    local_crs: CRS,
+    *,
+    crs_in: str | CRS = "EPSG:4326",
+    tol_m: float,
+) -> None:
+    """Raise if the AOI envelope extends beyond the parent DEM footprint."""
+    aoi_bounds = aeqd_bounds_from_geometry(clip_box, local_crs, crs_in=crs_in)
+    dem_bounds = aeqd_bounds_from_dem_src(dem_src, local_crs)
+    if (
+        aoi_bounds[0] < dem_bounds[0] - tol_m
+        or aoi_bounds[1] < dem_bounds[1] - tol_m
+        or aoi_bounds[2] > dem_bounds[2] + tol_m
+        or aoi_bounds[3] > dem_bounds[3] + tol_m
+    ):
+        raise ValueError(
+            "AOI extends beyond parent DEM coverage; "
+            "use a DEM that fully covers the study area"
+        )
 
 
 def build_aeqd_grid(
@@ -274,5 +291,19 @@ def write_aeqd_geotiff(
         "transform": grid.transform,
         "nodata": nodata,
     }
-    with rasterio.open(path, "w", **profile) as dst:
-        dst.write(elevation_m.astype(np.float64), 1)
+    out_path = Path(path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(
+        suffix=out_path.suffix,
+        dir=out_path.parent,
+        prefix=f".{out_path.stem}.",
+    )
+    os.close(fd)
+    tmp = Path(tmp_path)
+    try:
+        with rasterio.open(tmp, "w", **profile) as dst:
+            dst.write(elevation_m.astype(np.float64), 1)
+        tmp.replace(out_path)
+    except Exception:
+        tmp.unlink(missing_ok=True)
+        raise

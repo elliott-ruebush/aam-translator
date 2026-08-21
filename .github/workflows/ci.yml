@@ -26,3 +26,9 @@ jobs:
 
       - name: Run tests
         run: pytest -v
+
+      - name: Ruff check
+        run: ruff check src tests
+
+      - name: ty check
+        run: ty check

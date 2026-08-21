@@ -8,11 +8,10 @@ import numpy as np
 import rasterio
 from pyproj import CRS, Transformer
 from rasterio.transform import from_origin
-from shapely.geometry import box
+from shapely.geometry import Polygon, box
 
 TRIPLE_LAKES_LON = -148.90
 TRIPLE_LAKES_LAT = 63.73
-TRIPLE_LAKES_UTM_EPSG = 32606
 
 
 def utm_epsg_for_lon(lon: float) -> int:
@@ -87,7 +86,7 @@ def wgs84_box_from_utm_extent(
     width_m: float,
     height_m: float,
     pad_m: float = 0.0,
-) -> box:
+) -> Polygon:
     """Build a WGS84 AOI envelope covering a UTM-centered rectangle."""
     utm_epsg = utm_epsg_for_lon(center_lon)
     utm = CRS.from_epsg(utm_epsg)

@@ -21,6 +21,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest==8.3.5",
+    "ruff==0.16.4",
+    "ty==0.0.73",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -29,3 +31,17 @@ packages = ["src/aam_translator"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+exclude = ["docs/**"]

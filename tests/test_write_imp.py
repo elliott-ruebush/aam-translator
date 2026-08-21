@@ -13,10 +13,10 @@ from aam_translator.nmbgf_io import (
     write_nmbgf_case_header,
     write_nmbgf_end,
     write_nmbgf_metric_header,
-    write_nmbgf_payload,
     write_nmbgf_title,
 )
 from aam_translator.write_imp import ImpGridContext, write_imp_for_elv_grid
+from nmbgf_helpers import pack_nmbgf_test_payload
 
 _GRID = ImpGridContext(width=4, height=3, dx_m=91.44, dy_m=45.72)
 _DX_FT = _GRID.dx_m * FT_PER_M
@@ -35,7 +35,13 @@ def _write_minimal_elv(path: Path, *, spec: NmbgfGridSpec, title: str) -> None:
             payload_tag=b"ZALT",
             n_cells=len(values),
         )
-        write_nmbgf_payload(fp, values)
+        fp.write(
+            pack_nmbgf_test_payload(
+                values,
+                width=spec.width,
+                height=spec.height,
+            )
+        )
         write_nmbgf_end(fp)
 
 

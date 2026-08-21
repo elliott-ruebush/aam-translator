@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import struct
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
@@ -15,15 +14,16 @@ from shapely.geometry.base import BaseGeometry
 
 from .aeqd_grid import (
     AeqdGrid,
+    assert_aoi_within_dem_src,
     build_aeqd_grid,
     dem_posting_meters_from_src,
     resample_dem_to_aeqd_src,
     write_aeqd_geotiff,
 )
-from .constants import FT_PER_M, NMBGF_FLOAT
+from .constants import FT_PER_M
 from .nmbgf_io import (
     NmbgfGridSpec,
-    iter_grid_cells,
+    pack_nmbgf_payload,
     write_nmbgf_case_header,
     write_nmbgf_end,
     write_nmbgf_metric_header,
@@ -86,7 +86,9 @@ def georef_from_aeqd_grid(grid: AeqdGrid) -> ElvGeoref:
     )
 
 
-def build_elv_grid_spec(georef: ElvGeoref, width: int, height: int, *, to_feet: bool) -> ElvGridSpec:
+def build_elv_grid_spec(
+    georef: ElvGeoref, width: int, height: int, *, to_feet: bool,
+) -> ElvGridSpec:
     """Header cell spacing and units tag from metric georef."""
     if to_feet:
         return ElvGridSpec(
@@ -120,15 +122,6 @@ def prepare_elevation_array(
     return data
 
 
-def iter_zalt_values(data: np.ndarray, width: int, height: int, *, to_feet: bool):
-    """Yield ZALT payload values in NMBGF column-major / j-reversed order."""
-    for i, j in iter_grid_cells(width, height):
-        val = float(data[j, i])
-        if to_feet:
-            val *= FT_PER_M
-        yield val
-
-
 def write_nmbgf_elv_stream(
     fp: BinaryIO,
     *,
@@ -140,17 +133,16 @@ def write_nmbgf_elv_stream(
     write_nmbgf_title(fp)
     write_nmbgf_case_header(fp, title=title, spec=spec)
     n_cells = spec.width * spec.height
-    write_nmbgf_metric_header(fp, mtrc_tag=b"Zalt", payload_tag=b"ZALT", n_cells=n_cells)
+    write_nmbgf_metric_header(
+        fp, mtrc_tag=b"Zalt", payload_tag=b"ZALT", n_cells=n_cells,
+    )
 
     logger.debug("Writing %s ZALT cells", n_cells)
-    count = 0
-    for val in iter_zalt_values(elevation_m, spec.width, spec.height, to_feet=spec.to_feet):
-        fp.write(struct.pack(NMBGF_FLOAT, val))
-        count += 1
-    logger.debug("Wrote %s ZALT cells", count)
+    fp.write(pack_nmbgf_payload(elevation_m, to_feet=spec.to_feet))
+    logger.debug("Wrote %s ZALT cells", n_cells)
 
     write_nmbgf_end(fp)
-    return count
+    return n_cells
 
 
 def write_nmbgf_elv_file(
@@ -186,6 +178,9 @@ def write_elv_from_dem(
     ref_lon, ref_lat = _reference_point(clip_box)
     with rasterio.open(dem_path) as dem_src:
         dx_m = dem_posting_meters_from_src(dem_src, ref_lon=ref_lon, ref_lat=ref_lat)
+        assert_aoi_within_dem_src(
+            clip_box, dem_src, local_crs, crs_in=crs_in, tol_m=dx_m,
+        )
         grid = build_aeqd_grid(
             clip_box, local_crs, dx_m, crs_in=crs_in, dem_src=dem_src,
         )
@@ -200,7 +195,10 @@ def write_elv_from_dem(
     georef = georef_from_aeqd_grid(grid)
     spec = build_elv_grid_spec(georef, grid.nx, grid.ny, to_feet=to_feet)
     logger.info(
-        "Writing .ELV grid %s x %s; AEQD lower-left (m)=%s,%s; cell (m)=%s,%s; SW (deg)=%s,%s",
+        (
+            "Writing .ELV grid %s x %s; AEQD lower-left (m)=%s,%s; "
+            "cell (m)=%s,%s; SW (deg)=%s,%s"
+        ),
         spec.width,
         spec.height,
         georef.world_minx_m,
