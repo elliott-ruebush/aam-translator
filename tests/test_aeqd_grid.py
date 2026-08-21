@@ -10,7 +10,6 @@ import pytest
 from pyproj import Transformer
 
 from aam_translator.aeqd_grid import (
-    DemOracle,
     aeqd_cell_center,
     build_aeqd_grid,
     resample_dem_to_aeqd,
@@ -22,6 +21,7 @@ from dem_fixtures import (
     wgs84_box_from_utm_extent,
     write_utm_planar_ramp_dem,
 )
+from dem_oracle import DemOracle
 
 GDAL_ORACLE_TOLERANCE_M = 0.05
 

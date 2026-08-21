@@ -5,6 +5,7 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import TYPE_CHECKING
 
 from pyproj import CRS, Transformer
 from shapely.geometry.base import BaseGeometry
@@ -17,6 +18,9 @@ from .constants import (
     FT_PER_M,
     NMBGF_FLOAT,
 )
+
+if TYPE_CHECKING:
+    from .write_elv import ElvWriteResult
 
 
 @dataclass
@@ -38,6 +42,43 @@ class TerrainResult:
     model_cell_ft: float = DEFAULT_MODEL_CELL_FT
     cutoff_ft: float = DEFAULT_CUTOFF_FT
     flow_resistivity: float = DEFAULT_FLOW_RESISTIVITY
+
+    @classmethod
+    def from_elv_write(
+        cls,
+        elv: ElvWriteResult,
+        *,
+        local_crs: CRS,
+        elv_path: str,
+        imp_path: str | None = None,
+        clip_tif_path: str | None = None,
+        grid_agl_ft: float = DEFAULT_GRID_AGL_FT,
+        model_cell_ft: float = DEFAULT_MODEL_CELL_FT,
+        cutoff_ft: float = DEFAULT_CUTOFF_FT,
+        flow_resistivity: float = DEFAULT_FLOW_RESISTIVITY,
+    ) -> TerrainResult:
+        """Build terrain state from an ``.ELV`` write plus companion file paths."""
+        if clip_tif_path is None:
+            from .write_elv import clip_path_for_elv
+
+            clip_tif_path = clip_path_for_elv(elv_path)
+        return cls(
+            nx=elv.nx,
+            ny=elv.ny,
+            elv_dx_m=elv.elv_dx_m,
+            elv_dy_m=elv.elv_dy_m,
+            elv_header_feet=elv.elv_header_feet,
+            elv_world_minx_m=elv.elv_world_minx_m,
+            elv_world_miny_m=elv.elv_world_miny_m,
+            local_crs=local_crs,
+            elv_path=elv_path,
+            imp_path=imp_path,
+            clip_tif_path=clip_tif_path,
+            grid_agl_ft=grid_agl_ft,
+            model_cell_ft=model_cell_ft,
+            cutoff_ft=cutoff_ft,
+            flow_resistivity=flow_resistivity,
+        )
 
 
 def build_local_crs(aoi_geom: BaseGeometry, crs_in: str = "EPSG:4326") -> CRS:

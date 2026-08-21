@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import BinaryIO
+from typing import TYPE_CHECKING, BinaryIO
 
 import numpy as np
 
-from .constants import DEFAULT_FLOW_RESISTIVITY, FT_PER_M
+from .constants import DEFAULT_FLOW_RESISTIVITY
 from .nmbgf_io import (
     NmbgfGridSpec,
+    build_nmbgf_grid_spec,
     pack_nmbgf_payload,
     write_nmbgf_case_header,
     write_nmbgf_end,
@@ -19,6 +20,9 @@ from .nmbgf_io import (
 )
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from .write_elv import ElvWriteResult
 
 
 @dataclass(frozen=True)
@@ -31,6 +35,23 @@ class ImpGridContext:
     dy_m: float
     header_feet: bool = True
     default_flow_resistivity: float = DEFAULT_FLOW_RESISTIVITY
+
+    @classmethod
+    def from_elv_write(
+        cls,
+        elv: ElvWriteResult,
+        *,
+        flow_resistivity: float = DEFAULT_FLOW_RESISTIVITY,
+    ) -> ImpGridContext:
+        """Build IMP grid geometry from a companion ``.ELV`` write result."""
+        return cls(
+            width=elv.nx,
+            height=elv.ny,
+            dx_m=elv.elv_dx_m,
+            dy_m=elv.elv_dy_m,
+            header_feet=elv.elv_header_feet,
+            default_flow_resistivity=flow_resistivity,
+        )
 
 
 def resolve_flow_resistivity(
@@ -45,20 +66,12 @@ def resolve_flow_resistivity(
 
 def build_imp_grid_spec(ctx: ImpGridContext) -> NmbgfGridSpec:
     """Header spacing/units aligned with the companion ``.ELV`` grid."""
-    if ctx.header_feet:
-        return NmbgfGridSpec(
-            width=ctx.width,
-            height=ctx.height,
-            dx_out=ctx.dx_m * FT_PER_M,
-            dy_out=ctx.dy_m * FT_PER_M,
-            units_tag=b"FEET",
-        )
-    return NmbgfGridSpec(
+    return build_nmbgf_grid_spec(
         width=ctx.width,
         height=ctx.height,
-        dx_out=ctx.dx_m,
-        dy_out=ctx.dy_m,
-        units_tag=b"METR",
+        dx_m=ctx.dx_m,
+        dy_m=ctx.dy_m,
+        header_feet=ctx.header_feet,
     )
 
 

@@ -15,7 +15,7 @@ from .constants import (
     DEFAULT_MODEL_CELL_FT,
 )
 from .context import TerrainResult, aoi_clip_box, build_local_crs
-from .write_elv import clip_path_for_elv, write_elv_from_dem
+from .write_elv import write_elv_from_dem
 from .write_imp import ImpGridContext, write_imp_for_elv_grid
 from .write_inp import PoiPoint, TrackPoint, write_inp
 
@@ -82,30 +82,18 @@ def write_terrain(
     )
     write_imp_for_elv_grid(
         str(imp_path),
-        grid=ImpGridContext(
-            width=elv_result.nx,
-            height=elv_result.ny,
-            dx_m=elv_result.elv_dx_m,
-            dy_m=elv_result.elv_dy_m,
-            header_feet=elv_result.elv_header_feet,
-            default_flow_resistivity=flow_resistivity,
+        grid=ImpGridContext.from_elv_write(
+            elv_result, flow_resistivity=flow_resistivity,
         ),
         title=imp_title,
         constant_value=flow_resistivity,
     )
 
-    return TerrainResult(
-        nx=elv_result.nx,
-        ny=elv_result.ny,
-        elv_dx_m=elv_result.elv_dx_m,
-        elv_dy_m=elv_result.elv_dy_m,
-        elv_header_feet=elv_result.elv_header_feet,
-        elv_world_minx_m=elv_result.elv_world_minx_m,
-        elv_world_miny_m=elv_result.elv_world_miny_m,
+    return TerrainResult.from_elv_write(
+        elv_result,
         local_crs=local_crs,
         elv_path=str(elv_path),
         imp_path=str(imp_path),
-        clip_tif_path=clip_path_for_elv(str(elv_path)),
         grid_agl_ft=grid_agl_ft,
         model_cell_ft=model_cell_ft,
         cutoff_ft=cutoff_ft,

@@ -15,7 +15,7 @@ from aam_translator.context import (
     elv_extent_ft,
     lonlat_to_model_ft,
 )
-from aam_translator.write_elv import clip_path_for_elv, write_elv_from_dem
+from aam_translator.write_elv import write_elv_from_dem
 from dem_fixtures import grid_from_elv_result
 
 
@@ -46,17 +46,10 @@ def test_lonlat_to_model_ft_corners(
         local_crs=local_crs,
     )
     grid = grid_from_elv_result(result, local_crs)
-    terrain = TerrainResult(
-        nx=result.nx,
-        ny=result.ny,
-        elv_dx_m=result.elv_dx_m,
-        elv_dy_m=result.elv_dy_m,
-        elv_header_feet=result.elv_header_feet,
-        elv_world_minx_m=result.elv_world_minx_m,
-        elv_world_miny_m=result.elv_world_miny_m,
+    terrain = TerrainResult.from_elv_write(
+        result,
         local_crs=local_crs,
         elv_path=str(elv_path),
-        clip_tif_path=clip_path_for_elv(str(elv_path)),
     )
 
     to_wgs = Transformer.from_crs(local_crs, "EPSG:4326", always_xy=True)

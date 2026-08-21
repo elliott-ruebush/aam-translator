@@ -16,7 +16,7 @@ from aam_translator.context import (
     elv_extent_ft,
     lonlat_to_model_ft,
 )
-from aam_translator.write_elv import clip_path_for_elv, write_elv_from_dem
+from aam_translator.write_elv import write_elv_from_dem
 from aam_translator.write_imp import ImpGridContext, write_imp_for_elv_grid
 from aam_translator.write_inp import PoiPoint, TrackPoint, setup_para_block, write_inp
 
@@ -36,26 +36,14 @@ def _build_terrain(tmp_path: Path, tiny_dem_path, tiny_aoi_geom) -> TerrainResul
     )
     write_imp_for_elv_grid(
         str(imp_path),
-        grid=ImpGridContext(
-            width=elv_result.nx,
-            height=elv_result.ny,
-            dx_m=elv_result.elv_dx_m,
-            dy_m=elv_result.elv_dy_m,
-        ),
+        grid=ImpGridContext.from_elv_write(elv_result),
     )
 
-    return TerrainResult(
-        nx=elv_result.nx,
-        ny=elv_result.ny,
-        elv_dx_m=elv_result.elv_dx_m,
-        elv_dy_m=elv_result.elv_dy_m,
-        elv_header_feet=elv_result.elv_header_feet,
-        elv_world_minx_m=elv_result.elv_world_minx_m,
-        elv_world_miny_m=elv_result.elv_world_miny_m,
+    return TerrainResult.from_elv_write(
+        elv_result,
         local_crs=local_crs,
         elv_path=str(elv_path),
         imp_path=str(imp_path),
-        clip_tif_path=clip_path_for_elv(str(elv_path)),
     )
 
 

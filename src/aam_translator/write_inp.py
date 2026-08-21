@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import math
-import struct
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,9 +12,8 @@ from .constants import (
     DEFAULT_FLOW_RESISTIVITY,
     DEFAULT_MODEL_CELL_FT,
     FT_PER_M,
-    NMBGF_FLOAT,
 )
-from .context import TerrainResult, lonlat_to_model_ft
+from .context import TerrainResult, elv_extent_ft, lonlat_to_model_ft
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +47,7 @@ def setup_para_block(
     it was stored as. Corners are floored to whole model cells so the grid fits
     strictly inside the terrain extent.
     """
-    dx32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, terrain.elv_dx_m))[0]
-    dy32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, terrain.elv_dy_m))[0]
-    elv_x = terrain.nx * dx32 * FT_PER_M
-    elv_y = terrain.ny * dy32 * FT_PER_M
+    elv_x, elv_y = elv_extent_ft(terrain)
     xmax = math.floor(elv_x / model_cell_ft) * model_cell_ft
     ymax = math.floor(elv_y / model_cell_ft) * model_cell_ft
     agl = terrain.grid_agl_ft

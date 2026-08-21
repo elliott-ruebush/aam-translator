@@ -24,6 +24,32 @@ class NmbgfGridSpec:
     units_tag: bytes
 
 
+def build_nmbgf_grid_spec(
+    *,
+    width: int,
+    height: int,
+    dx_m: float,
+    dy_m: float,
+    header_feet: bool,
+) -> NmbgfGridSpec:
+    """Header cell spacing and units tag from metric grid dimensions."""
+    if header_feet:
+        return NmbgfGridSpec(
+            width=width,
+            height=height,
+            dx_out=dx_m * FT_PER_M,
+            dy_out=dy_m * FT_PER_M,
+            units_tag=b"FEET",
+        )
+    return NmbgfGridSpec(
+        width=width,
+        height=height,
+        dx_out=dx_m,
+        dy_out=dy_m,
+        units_tag=b"METR",
+    )
+
+
 @dataclass(frozen=True)
 class NmbgfHeader:
     """Parsed NMBGF header plus payload values (ZALT or FLOW)."""

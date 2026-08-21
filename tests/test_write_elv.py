@@ -10,12 +10,7 @@ import pytest
 import rasterio
 from pyproj import Transformer
 
-from aam_translator.aeqd_grid import (
-    DemOracle,
-    aeqd_cell_center,
-    resample_dem_to_aeqd,
-    sample_dem_at_aeqd_point,
-)
+from aam_translator.aeqd_grid import aeqd_cell_center, resample_dem_to_aeqd
 from aam_translator.constants import FT_PER_M
 from aam_translator.context import aoi_clip_box, build_local_crs
 from aam_translator.nmbgf_io import iter_grid_cells, read_nmbgf_header
@@ -27,6 +22,7 @@ from dem_fixtures import (
     wgs84_box_from_utm_extent,
     write_utm_planar_ramp_dem,
 )
+from dem_oracle import DemOracle, sample_dem_at_aeqd_point
 
 # Spot checks against the GDAL warp oracle tolerate float32/float64 noise only.
 GDAL_ORACLE_TOLERANCE_M = 0.05

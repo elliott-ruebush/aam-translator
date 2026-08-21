@@ -20,9 +20,9 @@ from .aeqd_grid import (
     resample_dem_to_aeqd_src,
     write_aeqd_geotiff,
 )
-from .constants import FT_PER_M
 from .nmbgf_io import (
     NmbgfGridSpec,
+    build_nmbgf_grid_spec,
     pack_nmbgf_payload,
     write_nmbgf_case_header,
     write_nmbgf_end,
@@ -90,22 +90,20 @@ def build_elv_grid_spec(
     georef: ElvGeoref, width: int, height: int, *, to_feet: bool,
 ) -> ElvGridSpec:
     """Header cell spacing and units tag from metric georef."""
-    if to_feet:
-        return ElvGridSpec(
-            width=width,
-            height=height,
-            dx_out=georef.dx_m * FT_PER_M,
-            dy_out=georef.dy_m * FT_PER_M,
-            units_tag=b"FEET",
-            to_feet=True,
-        )
-    return ElvGridSpec(
+    spec = build_nmbgf_grid_spec(
         width=width,
         height=height,
-        dx_out=georef.dx_m,
-        dy_out=georef.dy_m,
-        units_tag=b"METR",
-        to_feet=False,
+        dx_m=georef.dx_m,
+        dy_m=georef.dy_m,
+        header_feet=to_feet,
+    )
+    return ElvGridSpec(
+        width=spec.width,
+        height=spec.height,
+        dx_out=spec.dx_out,
+        dy_out=spec.dy_out,
+        units_tag=spec.units_tag,
+        to_feet=to_feet,
     )
 
 
