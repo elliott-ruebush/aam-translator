@@ -9,14 +9,15 @@ from pathlib import Path
 from typing import BinaryIO
 
 import numpy as np
+import rasterio
 from pyproj import CRS, Transformer
 from shapely.geometry.base import BaseGeometry
 
 from .aeqd_grid import (
     AeqdGrid,
     build_aeqd_grid,
-    dem_posting_meters,
-    resample_dem_to_aeqd,
+    dem_posting_meters_from_src,
+    resample_dem_to_aeqd_src,
     write_aeqd_geotiff,
 )
 from .constants import FT_PER_M, NMBGF_FLOAT
@@ -183,13 +184,15 @@ def write_elv_from_dem(
 ) -> ElvWriteResult:
     """End-to-end: resample parent DEM onto AEQD → ``scenario_clip.tif`` → ``.ELV``."""
     ref_lon, ref_lat = _reference_point(clip_box)
-    dx_m = dem_posting_meters(dem_path, ref_lon=ref_lon, ref_lat=ref_lat)
-    grid = build_aeqd_grid(clip_box, local_crs, dx_m, crs_in=crs_in, dem_path=dem_path)
-
-    elevation_m = resample_dem_to_aeqd(dem_path, grid)
-    elevation_m = prepare_elevation_array(
-        elevation_m, nodata_policy=nodata_policy, z0=z0,
-    )
+    with rasterio.open(dem_path) as dem_src:
+        dx_m = dem_posting_meters_from_src(dem_src, ref_lon=ref_lon, ref_lat=ref_lat)
+        grid = build_aeqd_grid(
+            clip_box, local_crs, dx_m, crs_in=crs_in, dem_src=dem_src,
+        )
+        elevation_m = resample_dem_to_aeqd_src(dem_src, grid)
+        elevation_m = prepare_elevation_array(
+            elevation_m, nodata_policy=nodata_policy, z0=z0,
+        )
 
     clipped_tif = clip_path_for_elv(elv_file)
     write_aeqd_geotiff(clipped_tif, grid, elevation_m)

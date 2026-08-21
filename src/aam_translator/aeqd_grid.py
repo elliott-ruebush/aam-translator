@@ -31,6 +31,26 @@ class AeqdGrid:
     local_crs: CRS
 
 
+def dem_posting_meters_from_src(
+    src: rasterio.io.DatasetReader,
+    *,
+    ref_lon: float,
+    ref_lat: float,
+) -> float:
+    """Return the source DEM cell size in meters at ``(ref_lon, ref_lat)``."""
+    dx = abs(src.transform.a)
+    dy = abs(src.transform.e)
+    if not src.crs.is_geographic:
+        return float(dx if abs(dx - dy) < 1e-6 else max(dx, dy))
+
+    # Approximate metric posting for geographic rasters at the reference latitude.
+    meters_per_deg_lon = 111_320.0 * math.cos(math.radians(ref_lat))
+    meters_per_deg_lat = 111_132.0
+    dx_m = dx * meters_per_deg_lon
+    dy_m = dy * meters_per_deg_lat
+    return float(dx_m if abs(dx_m - dy_m) < 1e-6 else max(dx_m, dy_m))
+
+
 def dem_posting_meters(
     dem_path: str | Path,
     *,
@@ -39,17 +59,7 @@ def dem_posting_meters(
 ) -> float:
     """Return the source DEM cell size in meters at ``(ref_lon, ref_lat)``."""
     with rasterio.open(dem_path) as src:
-        dx = abs(src.transform.a)
-        dy = abs(src.transform.e)
-        if not src.crs.is_geographic:
-            return float(dx if abs(dx - dy) < 1e-6 else max(dx, dy))
-
-        # Approximate metric posting for geographic rasters at the reference latitude.
-        meters_per_deg_lon = 111_320.0 * math.cos(math.radians(ref_lat))
-        meters_per_deg_lat = 111_132.0
-        dx_m = dx * meters_per_deg_lon
-        dy_m = dy * meters_per_deg_lat
-        return float(dx_m if abs(dx_m - dy_m) < 1e-6 else max(dx_m, dy_m))
+        return dem_posting_meters_from_src(src, ref_lon=ref_lon, ref_lat=ref_lat)
 
 
 def transform_geometry_to_crs(
@@ -74,22 +84,30 @@ def aeqd_bounds_from_geometry(
     return aeqd_geom.bounds
 
 
+def aeqd_bounds_from_dem_src(
+    src: rasterio.io.DatasetReader,
+    local_crs: CRS,
+) -> tuple[float, float, float, float]:
+    """Axis-aligned AEQD bounds of the parent DEM footprint."""
+    to_aeqd = Transformer.from_crs(src.crs, local_crs, always_xy=True)
+    bounds = src.bounds
+    corners = [
+        (bounds.left, bounds.bottom),
+        (bounds.right, bounds.bottom),
+        (bounds.right, bounds.top),
+        (bounds.left, bounds.top),
+    ]
+    xs, ys = zip(*(to_aeqd.transform(x, y) for x, y in corners))
+    return min(xs), min(ys), max(xs), max(ys)
+
+
 def aeqd_bounds_from_dem(
     dem_path: str | Path,
     local_crs: CRS,
 ) -> tuple[float, float, float, float]:
     """Axis-aligned AEQD bounds of the parent DEM footprint."""
     with rasterio.open(dem_path) as src:
-        to_aeqd = Transformer.from_crs(src.crs, local_crs, always_xy=True)
-        bounds = src.bounds
-        corners = [
-            (bounds.left, bounds.bottom),
-            (bounds.right, bounds.bottom),
-            (bounds.right, bounds.top),
-            (bounds.left, bounds.top),
-        ]
-        xs, ys = zip(*(to_aeqd.transform(x, y) for x, y in corners))
-    return min(xs), min(ys), max(xs), max(ys)
+        return aeqd_bounds_from_dem_src(src, local_crs)
 
 
 def merge_bounds(
@@ -111,13 +129,16 @@ def build_aeqd_grid(
     crs_in: str | CRS = "EPSG:4326",
     dy_m: float | None = None,
     dem_path: str | Path | None = None,
+    dem_src: rasterio.io.DatasetReader | None = None,
 ) -> AeqdGrid:
     """Snap an axis-aligned AEQD rectangle that covers ``clip_box`` and the DEM."""
     if dy_m is None:
         dy_m = dx_m
 
     bounds = [aeqd_bounds_from_geometry(clip_box, local_crs, crs_in=crs_in)]
-    if dem_path is not None:
+    if dem_src is not None:
+        bounds.append(aeqd_bounds_from_dem_src(dem_src, local_crs))
+    elif dem_path is not None:
         bounds.append(aeqd_bounds_from_dem(dem_path, local_crs))
     minx, miny, maxx, maxy = merge_bounds(*bounds)
 
@@ -148,25 +169,33 @@ def aeqd_cell_center(grid: AeqdGrid, i: int, j: int) -> tuple[float, float]:
     return x_m, y_m
 
 
+def resample_dem_to_aeqd_src(
+    src: rasterio.io.DatasetReader,
+    grid: AeqdGrid,
+) -> np.ndarray:
+    """Bilinear-resample ``src`` onto ``grid``; nodata → ``NaN``."""
+    dst = np.full((grid.ny, grid.nx), np.nan, dtype=np.float64)
+    reproject(
+        source=rasterio.band(src, 1),
+        destination=dst,
+        src_transform=src.transform,
+        src_crs=src.crs,
+        dst_transform=grid.transform,
+        dst_crs=grid.local_crs,
+        src_nodata=src.nodata,
+        dst_nodata=np.nan,
+        resampling=Resampling.bilinear,
+    )
+    return dst
+
+
 def resample_dem_to_aeqd(
     dem_path: str | Path,
     grid: AeqdGrid,
 ) -> np.ndarray:
     """Bilinear-resample ``dem_path`` onto ``grid``; nodata → ``NaN``."""
     with rasterio.open(dem_path) as src:
-        dst = np.full((grid.ny, grid.nx), np.nan, dtype=np.float64)
-        reproject(
-            source=rasterio.band(src, 1),
-            destination=dst,
-            src_transform=src.transform,
-            src_crs=src.crs,
-            dst_transform=grid.transform,
-            dst_crs=grid.local_crs,
-            src_nodata=src.nodata,
-            dst_nodata=np.nan,
-            resampling=Resampling.bilinear,
-        )
-    return dst
+        return resample_dem_to_aeqd_src(src, grid)
 
 
 def _sample_dem_at_aeqd_point_src(
