@@ -86,6 +86,27 @@ def aoi_envelope(aoi: BaseGeometry) -> BaseGeometry:
     return aoi.envelope
 
 
+def lonlat_to_model_ft(
+    terrain: TerrainResult,
+    lon: float,
+    lat: float,
+) -> tuple[float, float]:
+    """Convert WGS84 lon/lat to AAM model feet on the ELV grid."""
+    aeqd_x_m, aeqd_y_m = _wgs84_to_aeqd_m(terrain.aeqd_crs, lon, lat)
+    col_i, row_j = _aeqd_m_to_model_ij(terrain.spec, aeqd_x_m, aeqd_y_m)
+    return _model_ij_to_ft(terrain.spec, col_i, row_j)
+
+
+def elv_extent_ft(terrain: TerrainResult) -> tuple[float, float]:
+    """Return the ELV upper-right corner in feet using float32 cell sizes."""
+    spec = terrain.spec
+    dx32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, spec.cell_dx_m))[0]
+    dy32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, spec.cell_dy_m))[0]
+    elv_x = spec.cell_count_x * dx32 * FT_PER_M
+    elv_y = spec.cell_count_y * dy32 * FT_PER_M
+    return elv_x, elv_y
+
+
 @lru_cache(maxsize=32)
 def _wgs84_to_aeqd_transformer(crs_key: str) -> Transformer:
     """Return a cached WGS84→AEQD transformer keyed by CRS WKT."""
@@ -114,24 +135,3 @@ def _model_ij_to_ft(spec: GridSpec, col_i: float, row_j: float) -> tuple[float, 
     model_x_ft = col_i * spec.cell_dx_m * FT_PER_M
     model_y_ft = row_j * spec.cell_dy_m * FT_PER_M
     return model_x_ft, model_y_ft
-
-
-def lonlat_to_model_ft(
-    terrain: TerrainResult,
-    lon: float,
-    lat: float,
-) -> tuple[float, float]:
-    """Convert WGS84 lon/lat to AAM model feet on the ELV grid."""
-    aeqd_x_m, aeqd_y_m = _wgs84_to_aeqd_m(terrain.aeqd_crs, lon, lat)
-    col_i, row_j = _aeqd_m_to_model_ij(terrain.spec, aeqd_x_m, aeqd_y_m)
-    return _model_ij_to_ft(terrain.spec, col_i, row_j)
-
-
-def elv_extent_ft(terrain: TerrainResult) -> tuple[float, float]:
-    """Return the ELV upper-right corner in feet using float32 cell sizes."""
-    spec = terrain.spec
-    dx32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, spec.cell_dx_m))[0]
-    dy32 = struct.unpack(NMBGF_FLOAT, struct.pack(NMBGF_FLOAT, spec.cell_dy_m))[0]
-    elv_x = spec.cell_count_x * dx32 * FT_PER_M
-    elv_y = spec.cell_count_y * dy32 * FT_PER_M
-    return elv_x, elv_y

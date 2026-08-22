@@ -129,7 +129,8 @@ def test_write_elv_clip_matches_zalt_payload(
     with rasterio.open(clip_tif) as clip:
         clip_data = clip.read(1)
 
-    for idx, (col, row) in enumerate(iter_grid_cells(spec.cell_count_x, spec.cell_count_y)):
+    cells = iter_grid_cells(spec.cell_count_x, spec.cell_count_y)
+    for idx, (col, row) in enumerate(cells):
         clip_ft = float(clip_data[row, col]) * FT_PER_M
         assert hdr.values[idx] == pytest.approx(clip_ft, rel=1e-5)
 

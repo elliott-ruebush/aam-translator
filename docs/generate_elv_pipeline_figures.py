@@ -41,16 +41,6 @@ DX_M = 30.0
 DY_M = 30.0
 
 
-def _transformers() -> tuple[Transformer, Transformer, CRS]:
-    utm = CRS.from_epsg(UTM_EPSG)
-    aeqd = CRS.from_proj4(
-        f"+proj=aeqd +lat_0={LAT0} +lon_0={LON0} +datum=WGS84 +units=m +no_defs",
-    )
-    to_utm = Transformer.from_crs("EPSG:4326", utm, always_xy=True)
-    utm_to_aeqd = Transformer.from_crs(utm, aeqd, always_xy=True)
-    return to_utm, utm_to_aeqd, aeqd
-
-
 def utm_tile_corners() -> tuple[np.ndarray, np.ndarray, tuple[float, float]]:
     """Return UTM and AEQD corner arrays (SW, SE, NE, NW) and UTM SW."""
     to_utm, utm_to_aeqd, _ = _transformers()
@@ -68,26 +58,6 @@ def utm_tile_corners() -> tuple[np.ndarray, np.ndarray, tuple[float, float]]:
     aeqd_x, aeqd_y = utm_to_aeqd.transform(utm_xy[:, 0], utm_xy[:, 1])
     aeqd_xy = np.column_stack([aeqd_x, aeqd_y])
     return utm_xy, aeqd_xy, (minx, miny)
-
-
-def _closed(xy: np.ndarray) -> np.ndarray:
-    return np.vstack([xy, xy[0]])
-
-
-def _style() -> None:
-    plt.rcParams.update(
-        {
-            "figure.facecolor": "white",
-            "axes.facecolor": "white",
-            "savefig.facecolor": "white",
-            "font.size": 10,
-            "axes.titlesize": 11,
-            "axes.labelsize": 10,
-            "legend.fontsize": 8.5,
-            "axes.spines.top": False,
-            "axes.spines.right": False,
-        }
-    )
 
 
 def fig_utm_vs_aeqd(path: Path) -> float:
@@ -462,6 +432,36 @@ def main() -> None:
     print(f"NE offset: {offset:.1f} m")
     for p in (p1, p2, p3):
         print(f"wrote {p} ({p.stat().st_size} bytes)")
+
+
+def _transformers() -> tuple[Transformer, Transformer, CRS]:
+    utm = CRS.from_epsg(UTM_EPSG)
+    aeqd = CRS.from_proj4(
+        f"+proj=aeqd +lat_0={LAT0} +lon_0={LON0} +datum=WGS84 +units=m +no_defs",
+    )
+    to_utm = Transformer.from_crs("EPSG:4326", utm, always_xy=True)
+    utm_to_aeqd = Transformer.from_crs(utm, aeqd, always_xy=True)
+    return to_utm, utm_to_aeqd, aeqd
+
+
+def _closed(xy: np.ndarray) -> np.ndarray:
+    return np.vstack([xy, xy[0]])
+
+
+def _style() -> None:
+    plt.rcParams.update(
+        {
+            "figure.facecolor": "white",
+            "axes.facecolor": "white",
+            "savefig.facecolor": "white",
+            "font.size": 10,
+            "axes.titlesize": 11,
+            "axes.labelsize": 10,
+            "legend.fontsize": 8.5,
+            "axes.spines.top": False,
+            "axes.spines.right": False,
+        }
+    )
 
 
 if __name__ == "__main__":

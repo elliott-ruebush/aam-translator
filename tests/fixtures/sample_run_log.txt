@@ -1,0 +1,44 @@
+                    ***** ADVANCED ACOUSTIC MODEL *****
+                      Version 3.0.0  Dec. 2020  Volpe
+                            SETUP PARAMETERS
+     Number of tracks = 1
+     Lower Left  Corner of Grid in feet (X Y pair) =        0.,        0.
+     Upper Right Corner of Grid in feet (X Y pair) =    29700.,    10500.
+     Grid Size (iX,iY) =    0     0
+
+ Interpolated Track for analysis.    3 points   Note: beta(0=E,90=N) head(0=N,90=E)
+          time           Xft           Yft         Z-MSL           ang           rad           spd           yaw        attack          roll          nacl
+        0.0000     -9842.520         0.000      3280.800         0.000         0.000       136.100         0.000         0.000         0.000        90.000
+        1.4283     -9514.440         0.000      3280.800         0.000         0.000       136.100         0.000         0.000         0.000        90.000
+        2.8566     -9186.350         0.000      3280.800         0.000         0.000       136.100         0.000         0.000         0.000        90.000
+
+ Input file= scenario.inp
+ Elevation file= scenario.elv
+ Impedance file= scenario.imp
+ Terrain Information
+ Title= AAM elevation grid
+ UTM Zone=    0
+ LowerLeft =           0.00           0.00
+ Spacing =          98.43          98.43
+ Grid Size =  304  109
+ UpperRight =       29921.26       10728.35
+ ELV file (X,Y) in FEET
+ Terrain Values: LL, UR=   2913.015       1690.094
+
+ Impedance Information
+ Title= AAM impedance grid
+ UTM Zone=    0
+ LowerLeft =           0.00           0.00
+ Spacing =          98.43          98.43
+ Grid Size =  304  109
+ UpperRight =       29921.26       10728.35
+ IMP file (X,Y) in FEET
+ Impedance Values: LL, UR=   200.0000       200.0000
+
+                                        POINT OF INTEREST RESULTS
+     NAME      X         Y         Z       LmaxA      LmaxC     Lmax      SEL       SEL       SEL      EPNL      PNLMX
+            (feet)    (feet)    (feet)     (dBA)      (dBC)     (dB)     (dBA)     (dBC)   (Overall)   (dB)      (dB)
+Receiver     14920.     5354.        5.    117.1     123.4     125.4     130.8     138.1     140.7     134.2     130.4
+
+     Start Date 21-08-2026     Start Time 20:03:32.76
+     Stop Date  21-08-2026     Stop Time  20:03:33.76

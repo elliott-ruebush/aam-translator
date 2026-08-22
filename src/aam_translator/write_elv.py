@@ -143,11 +143,6 @@ def write_nmbgf_elv_file(
     logger.info(".ELV file saved to %s", elv_file)
 
 
-def _aoi_centroid_lonlat(aoi_envelope: BaseGeometry) -> tuple[float, float]:
-    centroid = aoi_envelope.centroid
-    return centroid.x, centroid.y
-
-
 def write_elv_from_dem(
     dem_path: str | Path,
     elv_file: str | Path,
@@ -202,3 +197,8 @@ def write_elv_from_dem(
     )
 
     return ElvWriteResult(spec=grid_spec, header_feet=spec.to_feet)
+
+
+def _aoi_centroid_lonlat(aoi_envelope: BaseGeometry) -> tuple[float, float]:
+    centroid = aoi_envelope.centroid
+    return centroid.x, centroid.y

@@ -6,3 +6,7 @@ __pycache__/
 dist/
 build/
 .DS_Store
+
+# Vendor AAM manual (obtain locally; see references/manuals/README.md)
+references/manuals/*.pdf
+references/manuals/*.txt

@@ -52,7 +52,11 @@ def build_nmbgf_grid_spec(
 
 @dataclass(frozen=True)
 class NmbgfHeader:
-    """Parsed NMBGF header plus payload values (ZALT or FLOW)."""
+    """Parsed NMBGF header plus payload values (ZALT or FLOW).
+
+    Prefer :class:`NmbgfGrid` and :func:`read_nmbgf_grid` when the payload is
+    needed as a north-up 2D array.
+    """
 
     version: tuple[int, int]
     title: str
@@ -67,6 +71,14 @@ class NmbgfHeader:
     first_value: float | None
     last_value: float | None
     values: tuple[float, ...]
+
+
+@dataclass(frozen=True)
+class NmbgfGrid:
+    """An NMBGF grid header plus its payload as a north-up 2D array."""
+
+    header: NmbgfHeader
+    values: np.ndarray  # shape (height, width) == (header.nj, header.ni)
 
 
 def write_nmbgf_title(fp: BinaryIO) -> None:
@@ -305,6 +317,30 @@ def read_nmbgf_header(path: str | Path) -> NmbgfHeader:
         last_value=values[-1] if values else None,
         values=tuple(values),
     )
+
+
+def read_nmbgf_grid(path: str | Path) -> NmbgfGrid:
+    """Read a full NMBGF grid: header plus payload reshaped to north-up rows.
+
+    Scoped to the ``CASE``-family NMBGF that this package writes (``.ELV`` with a
+    ``ZALT`` payload and ``.IMP`` with a ``FLOW`` payload). AAM's ``COMPUTEGRD``
+    ``.GRD`` output is a different NMBGF dialect (``MTRC``/``CART``/``LINS``/``GRID``
+    tags, no ``CASE`` block) and is not supported here.
+    """
+    header = read_nmbgf_header(path)
+    path_obj = Path(path)
+    expected_cells = header.ni * header.nj
+    if header.n_cells != expected_cells:
+        raise ValueError(
+            f"NMBGF cell count mismatch in {path_obj}: "
+            f"n_cells={header.n_cells}, ni*nj={expected_cells}"
+        )
+
+    height = header.nj
+    width = header.ni
+    flat = np.asarray(header.values, dtype=np.float32)
+    values = flat.reshape((height, width), order="F")[::-1, :]
+    return NmbgfGrid(header=header, values=values)
 
 
 def _align4(n: int) -> int:

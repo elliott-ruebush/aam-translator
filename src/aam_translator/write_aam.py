@@ -22,18 +22,6 @@ from .write_inp import PoiPoint, TrackPoint, write_inp
 logger = logging.getLogger(__name__)
 
 
-def _sanitize_basename(basename: str, *, kind: str) -> str:
-    """Return a safe filename component; reject empty or path-like names."""
-    if not isinstance(basename, str) or not basename.strip():
-        raise ValueError(f"{kind} must be a non-empty string")
-    name = basename.strip()
-    if not name or name in (".", ".."):
-        raise ValueError(f"invalid {kind}: {basename!r}")
-    if "/" in name or "\\" in name or name != Path(name).name:
-        raise ValueError(f"invalid {kind}: {basename!r}")
-    return name
-
-
 @dataclass
 class AamInputs:
     """Paths and terrain state after writing a complete AAM case."""
@@ -123,3 +111,15 @@ def write_aam_inputs(
         source_id=source_id,
     )
     return AamInputs(terrain=terrain, inp_path=inp_path)
+
+
+def _sanitize_basename(basename: str, *, kind: str) -> str:
+    """Return a safe filename component; reject empty or path-like names."""
+    if not isinstance(basename, str) or not basename.strip():
+        raise ValueError(f"{kind} must be a non-empty string")
+    name = basename.strip()
+    if not name or name in (".", ".."):
+        raise ValueError(f"invalid {kind}: {basename!r}")
+    if "/" in name or "\\" in name or name != Path(name).name:
+        raise ValueError(f"invalid {kind}: {basename!r}")
+    return name

@@ -33,27 +33,6 @@ _DY_FT = _GRID_SPEC.cell_dy_m * FT_PER_M
 _N_CELLS = _GRID_SPEC.cell_count_x * _GRID_SPEC.cell_count_y
 
 
-def _write_minimal_elv(path: Path, *, spec: NmbgfGridSpec, title: str) -> None:
-    values = tuple(float(i) for i in range(spec.width * spec.height))
-    with path.open("wb") as fp:
-        write_nmbgf_title(fp)
-        write_nmbgf_case_header(fp, title=title, spec=spec)
-        write_nmbgf_metric_header(
-            fp,
-            mtrc_tag=b"Zalt",
-            payload_tag=b"ZALT",
-            n_cells=len(values),
-        )
-        fp.write(
-            pack_nmbgf_test_payload(
-                values,
-                width=spec.width,
-                height=spec.height,
-            )
-        )
-        write_nmbgf_end(fp)
-
-
 def test_write_imp_for_elv_grid_header_and_flow(tmp_path: Path) -> None:
     imp_path = tmp_path / "terrain.imp"
     write_imp_for_elv_grid(str(imp_path), grid=_GRID)
@@ -92,3 +71,24 @@ def test_write_imp_geometry_matches_companion_elv(tmp_path: Path) -> None:
     assert imp_hdr.dj == pytest.approx(elv_hdr.dj)
     assert imp_hdr.units == elv_hdr.units
     assert imp_hdr.xryr == elv_hdr.xryr
+
+
+def _write_minimal_elv(path: Path, *, spec: NmbgfGridSpec, title: str) -> None:
+    values = tuple(float(i) for i in range(spec.width * spec.height))
+    with path.open("wb") as fp:
+        write_nmbgf_title(fp)
+        write_nmbgf_case_header(fp, title=title, spec=spec)
+        write_nmbgf_metric_header(
+            fp,
+            mtrc_tag=b"Zalt",
+            payload_tag=b"ZALT",
+            n_cells=len(values),
+        )
+        fp.write(
+            pack_nmbgf_test_payload(
+                values,
+                width=spec.width,
+                height=spec.height,
+            )
+        )
+        write_nmbgf_end(fp)

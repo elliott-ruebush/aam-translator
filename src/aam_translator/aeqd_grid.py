@@ -174,7 +174,7 @@ def build_aeqd_grid(
 
 
 def aeqd_cell_center(grid: AeqdGrid, col_i: int, row_j: int) -> tuple[float, float]:
-    """Return the AEQD center of model cell ``(col_i, row_j)`` (``row_j=0`` is south)."""
+    """Return the AEQD center of model cell ``(col_i, row_j)``; ``row_j=0`` is south."""
     spec = grid.spec
     aeqd_x_m = spec.grid_origin_x_m + (col_i + 0.5) * spec.cell_dx_m
     aeqd_y_m = spec.grid_origin_y_m + (row_j + 0.5) * spec.cell_dy_m

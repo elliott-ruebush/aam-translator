@@ -5,17 +5,22 @@ from __future__ import annotations
 import struct
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from aam_translator.constants import DEFAULT_FLOW_RESISTIVITY, FT_PER_M, NMBGF_XRYR
 from aam_translator.nmbgf_io import (
     NmbgfGridSpec,
+    iter_grid_cells,
+    read_nmbgf_grid,
     read_nmbgf_header,
     write_nmbgf_case_header,
     write_nmbgf_end,
     write_nmbgf_metric_header,
     write_nmbgf_title,
 )
+from aam_translator.write_elv import ElvGridSpec, write_nmbgf_elv_file
+from aam_translator.write_imp import write_nmbgf_imp_file
 from nmbgf_helpers import pack_nmbgf_test_payload
 
 _TITLE_PREFIX = b"TITL\x04\x00\x00\x00GridVers\x01\x00\x00\x00\x00\x00\x00\x00"
@@ -27,38 +32,6 @@ _SPEC = NmbgfGridSpec(
     units_tag=b"FEET",
 )
 _ZALT = (10.0, 20.5, 30.0, 40.25, 50.0, 60.0)
-
-
-def _write_nmbgf(
-    path: Path,
-    *,
-    title: str,
-    spec: NmbgfGridSpec,
-    mtrc_tag: bytes,
-    payload_tag: bytes,
-    values: tuple[float, ...],
-) -> None:
-    with path.open("wb") as fp:
-        write_nmbgf_title(fp)
-        write_nmbgf_case_header(fp, title=title, spec=spec)
-        write_nmbgf_metric_header(
-            fp,
-            mtrc_tag=mtrc_tag,
-            payload_tag=payload_tag,
-            n_cells=len(values),
-        )
-        fp.write(
-            pack_nmbgf_test_payload(
-                values,
-                width=spec.width,
-                height=spec.height,
-            )
-        )
-        write_nmbgf_end(fp)
-
-
-def _after_tag(data: bytes, tag: bytes) -> int:
-    return data.index(tag) + len(tag)
 
 
 def test_title_prefix_bytes(tmp_path: Path) -> None:
@@ -190,3 +163,119 @@ def test_flow_roundtrip_not_converted_to_feet(tmp_path: Path) -> None:
     converted = DEFAULT_FLOW_RESISTIVITY * FT_PER_M
     assert hdr.first_value != pytest.approx(converted)
     assert all(v != pytest.approx(converted) for v in hdr.values)
+
+
+def test_read_nmbgf_grid_elv_roundtrip(tmp_path: Path) -> None:
+    width = 4
+    height = 3
+    elevation_m = np.arange(width * height, dtype=float).reshape(height, width)
+    spec = ElvGridSpec(
+        width=width,
+        height=height,
+        dx_out=300.0,
+        dy_out=150.0,
+        units_tag=b"FEET",
+        to_feet=True,
+    )
+    path = tmp_path / "orient.elv"
+    write_nmbgf_elv_file(path, title="orient", spec=spec, elevation_m=elevation_m)
+
+    grid = read_nmbgf_grid(path)
+    expected_ft = (elevation_m * FT_PER_M).astype(np.float32)
+
+    assert grid.values.shape == (height, width)
+    assert grid.values.dtype == np.float32
+    assert grid.header.ni == width
+    assert grid.header.nj == height
+    assert grid.header.units == "FEET"
+    assert grid.header.data_tag == "ZALT"
+    # Every cell is distinct and the grid is non-square, so this comparison
+    # fails on a transpose or a row flip as well as on a value error.
+    np.testing.assert_allclose(grid.values, expected_ft, rtol=1e-6)
+
+
+def test_read_nmbgf_grid_indexing_matches_flat_payload_order(tmp_path: Path) -> None:
+    # ``iter_grid_cells`` defines the on-disk cell order, and ``test_write_elv``
+    # pins that order to a north-up source raster. This ties the 2D view to the
+    # same convention: ``values[j, i]`` is the cell ``iter_grid_cells`` yields,
+    # so row 0 is the north edge.
+    width = 5
+    height = 3
+    elevation_m = np.arange(width * height, dtype=float).reshape(height, width)
+    spec = ElvGridSpec(
+        width=width,
+        height=height,
+        dx_out=300.0,
+        dy_out=300.0,
+        units_tag=b"FEET",
+        to_feet=True,
+    )
+    path = tmp_path / "order.elv"
+    write_nmbgf_elv_file(path, title="order", spec=spec, elevation_m=elevation_m)
+
+    grid = read_nmbgf_grid(path)
+    for index, (col_i, row_j) in enumerate(iter_grid_cells(width, height)):
+        assert grid.values[row_j, col_i] == pytest.approx(
+            grid.header.values[index], rel=1e-6,
+        )
+
+
+def test_read_nmbgf_grid_imp_roundtrip(tmp_path: Path) -> None:
+    width = 4
+    height = 3
+    spec = NmbgfGridSpec(
+        width=width,
+        height=height,
+        dx_out=300.0,
+        dy_out=150.0,
+        units_tag=b"FEET",
+    )
+    path = tmp_path / "orient.imp"
+    write_nmbgf_imp_file(
+        str(path),
+        title="orient flow",
+        spec=spec,
+        flow_resistivity=DEFAULT_FLOW_RESISTIVITY,
+    )
+
+    grid = read_nmbgf_grid(path)
+
+    assert grid.values.shape == (height, width)
+    assert grid.values.dtype == np.float32
+    assert grid.header.ni == width
+    assert grid.header.nj == height
+    assert grid.header.data_tag == "FLOW"
+    # Constant payload, so this pins the shape and units rather than orientation.
+    np.testing.assert_allclose(grid.values, DEFAULT_FLOW_RESISTIVITY, rtol=1e-6)
+
+
+def _write_nmbgf(
+    path: Path,
+    *,
+    title: str,
+    spec: NmbgfGridSpec,
+    mtrc_tag: bytes,
+    payload_tag: bytes,
+    values: tuple[float, ...],
+) -> None:
+    with path.open("wb") as fp:
+        write_nmbgf_title(fp)
+        write_nmbgf_case_header(fp, title=title, spec=spec)
+        write_nmbgf_metric_header(
+            fp,
+            mtrc_tag=mtrc_tag,
+            payload_tag=payload_tag,
+            n_cells=len(values),
+        )
+        fp.write(
+            pack_nmbgf_test_payload(
+                values,
+                width=spec.width,
+                height=spec.height,
+            )
+        )
+        write_nmbgf_end(fp)
+
+
+def _after_tag(data: bytes, tag: bytes) -> int:
+    return data.index(tag) + len(tag)

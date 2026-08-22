@@ -1,0 +1,12 @@
+REM Tier 4 COMPUTEPOI 500 source snapshots
+COMPUTEPOI
+DIAGNOSTICS
+TERRAIN
+scenario.elv
+scenario.imp
+ONE TRACK
+Reciprocal line (500 sources)
+    500.0000000
+     ***  READ ERROR FROM ADVANCED ACOUSTIC MODEL  ***
+     Number of segments appearing in TRACK SPECIFICATION > RECIPROCAL LINE (500
+     exceeds   400 You have entered >   500

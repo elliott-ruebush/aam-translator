@@ -1,6 +1,8 @@
 # DEM → AAM ELV pipeline
 
-Reference for the AEQD resample implemented in ``write_elv.py``. Regenerating figures:
+Reference for the AEQD resample implemented in ``write_elv.py``. Complements the format specs in [`references/notes/aam_nmbgf.md`](../references/notes/aam_nmbgf.md) (NMBGF headers, `XRYR`/`DIDJ`/`FEET`) and [`references/notes/aam_inp_format.md`](../references/notes/aam_inp_format.md) (calculating grid vs terrain grid).
+
+Regenerating figures:
 
 ```
 uv pip install matplotlib   # not a runtime dependency
