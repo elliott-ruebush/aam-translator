@@ -15,14 +15,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import numpy as np
 
 from .bands import band_number_for_frequency
-
-if TYPE_CHECKING:  # pragma: no cover - import only for type checking
-    import pandas as pd
 
 # AAM writes this in a band cell that received no energy.
 AAM_NODATA_DB = -370.0
@@ -69,24 +65,6 @@ class PoiTimeHistory:
                 f"expected one of {POI_BROADBAND_COLUMNS}"
             ) from None
         return self.broadband_db[:, index]
-
-    def to_dataframe(self) -> pd.DataFrame:
-        """Return a DataFrame of time, broadband columns, then band numbers.
-
-        Requires pandas, which is not a runtime dependency of this package.
-        Band columns are keyed by ANSI band number; callers needing another
-        labelling convention should rename them.
-        """
-        import pandas as pd
-
-        frame = pd.DataFrame({"time_s": self.time_s})
-        for index, name in enumerate(POI_BROADBAND_COLUMNS):
-            frame[name] = self.broadband_db[:, index]
-        bands = pd.DataFrame(
-            self.band_levels_db,
-            columns=pd.Index(self.band_numbers),
-        )
-        return pd.concat([frame, bands], axis=1)
 
 
 def read_poi(path: str | Path) -> list[PoiTimeHistory]:

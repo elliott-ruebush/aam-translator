@@ -16,8 +16,7 @@ Format limits (400-point track cap, `READ ERROR` behaviour) are documented in
 | `.ELV` / `.IMP` | `read_nmbgf_grid` | `NmbgfGrid` — north-up 2D array in header units (not AAM `.GRD`) |
 
 `PoiTimeHistory` holds numpy arrays (`time_s`, `broadband_db`, `band_levels_db`).
-Band cells at or below AAM's `-370 dB` sentinel become `NaN`. Optional
-`to_dataframe()` needs pandas, which is not a runtime dependency.
+Band cells at or below AAM's `-370 dB` sentinel become `NaN`.
 
 ## Reading a `COMPUTEPOI` run
 

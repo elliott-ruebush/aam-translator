@@ -98,16 +98,6 @@ def test_read_poi_no_zones_raises(tmp_path: Path) -> None:
         read_poi(bad)
 
 
-def test_to_dataframe_shape_and_columns() -> None:
-    pd = pytest.importorskip("pandas")
-    first = read_poi(FIXTURE)[0]
-    frame = first.to_dataframe()
-    assert isinstance(frame, pd.DataFrame)
-    assert list(frame.columns) == ["time_s", *POI_BROADBAND_COLUMNS, 10, 11, 12, 13]
-    assert len(frame) == 3
-    assert frame["dBA"].tolist() == [99.80, 100.30, 100.82]
-
-
 def test_band_number_for_frequency_matches_aam_labels() -> None:
     assert band_number_for_frequency(10.0) == 10
     assert band_number_for_frequency(12.5) == 11
