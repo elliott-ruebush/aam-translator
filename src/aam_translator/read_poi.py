@@ -82,7 +82,10 @@ class PoiTimeHistory:
         frame = pd.DataFrame({"time_s": self.time_s})
         for index, name in enumerate(POI_BROADBAND_COLUMNS):
             frame[name] = self.broadband_db[:, index]
-        bands = pd.DataFrame(self.band_levels_db, columns=list(self.band_numbers))
+        bands = pd.DataFrame(
+            self.band_levels_db,
+            columns=pd.Index(self.band_numbers),
+        )
         return pd.concat([frame, bands], axis=1)
 
 
