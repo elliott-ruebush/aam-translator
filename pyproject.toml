@@ -12,7 +12,8 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "numpy==2.2.6",
+    # Align with NPS-ActiveSpace (numpy==2.3.1); keep upper bound for pip resolution.
+    "numpy>=2.2.6,<2.4",
     "rasterio==1.4.3",
     "pyproj==3.7.1",
     "shapely==2.1.1",
