@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aam-translator"
-version = "0.1.0"
+version = "0.1.1"
 description = "Prepare geospatial inputs for the Advanced Acoustic Model (.ELV, .IMP, .INP)"
 readme = "README.md"
 authors = [
