@@ -7,6 +7,9 @@ dist/
 build/
 .DS_Store
 
-# Vendor AAM manual (obtain locally; see references/manuals/README.md)
+# Vendor AAM manual and source (obtain locally; see references/manuals/README.md)
 references/manuals/*.pdf
 references/manuals/*.txt
+references/source/*.f
+references/source/*.for
+references/notes/aam_figure_3_2_grids.png

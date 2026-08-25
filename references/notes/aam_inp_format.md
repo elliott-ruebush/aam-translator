@@ -29,7 +29,7 @@ Manual **§3.4 Data Grids**, **Figure 3-2**. AAM uses two nested horizontal grid
 
 ![Figure 3-2: geometric relationship between tracks, terrain grid, and noise grid](aam_figure_3_2_grids.png)
 
-*Figure 3-2 (manual): terrain grid file must encompass the noise calculation grid **and** tracks; the margin outside the noise grid should be large enough that levels at the terrain edge are ≥10 dB below the peak (metric standards).*
+*Figure 3-2 (manual; PNG gitignored — copy locally from the vendor PDF):* terrain grid file must encompass the noise calculation grid **and** tracks; the margin outside the noise grid should be large enough that levels at the terrain edge are ≥10 dB below the peak (metric standards).
 
 **Rules (same user model feet throughout):**
 

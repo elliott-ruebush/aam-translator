@@ -8,7 +8,9 @@ Stable specs for AAM `.inp`, NMBGF terrain grids, and related terminology. **Not
 | [`notes/aam_nmbgf.md`](notes/aam_nmbgf.md) | NMBGF `.ELV`/`.IMP`/`.GRD` headers and extent |
 | [`notes/glossary.md`](notes/glossary.md) | Shared terms (CRS, grids, NMBGF tags, metrics) |
 | [`manuals/`](manuals/) | Vendor manual PDF + text extract (gitignored — local only) |
-| [`source/`](source/) | Vendor Fortran extracts (`Plt2Elv.f`) |
+| [`source/`](source/) | Vendor Fortran extracts (gitignored — local only, e.g. `Plt2Elv.f`) |
+
+Gitignored local copies in `notes/`: `aam_figure_3_2_grids.png` (manual Figure 3-2). See [`manuals/README.md`](manuals/README.md).
 
 **Implementation pipeline** (DEM → AEQD → `.ELV`): [`docs/elv_pipeline.md`](../docs/elv_pipeline.md).
 

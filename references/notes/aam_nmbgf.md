@@ -31,7 +31,7 @@ not as a missing read path.
 
 ## Header fields (CASE block → MTRC → data)
 
-Read order matches vendor [`Plt2Elv.f`](../source/Plt2Elv.f). Canonical read path in this package: [`nmbgf_io.read_nmbgf_header`](../../src/aam_translator/nmbgf_io.py).
+Read order matches local [`Plt2Elv.f`](../source/Plt2Elv.f) (gitignored; see [`source/README`](../source/README.md)). Canonical read path in this package: [`nmbgf_io.read_nmbgf_header`](../../src/aam_translator/nmbgf_io.py).
 
 | Tag | Meaning | Units / notes |
 |-----|---------|----------------|
@@ -81,7 +81,7 @@ Terrain is built with **`write_terrain()`** / **`write_aam_inputs()`**, not vend
 | Choice | Value | Why |
 |--------|-------|-----|
 | **`XRYR`** | **`(0, 0)`** on ELV and IMP | Coresident with calculating-grid origin at terrain SW corner (`SETUP PARA` LL often `(0,0)`) |
-| Units tag | **`FEET`** | Aligns with `Plt2Elv.f` and `.inp` BSU feet |
+| Units tag | **`FEET`** | Aligns with vendor terrain writers and `.inp` BSU feet |
 | **`DIDJ` / `ZALT`** | Feet | Spacing and MSL elevations converted on write (`FT_PER_M = 3.28084`) |
 | **`FLOW`** | **200.0** kPa·s/m² | Constant soft-ground impedance (not multiplied by feet) |
 
@@ -107,9 +107,7 @@ metres, and as `float32` because that is how the payload is stored.
 
 ---
 
-## Vendor reference
-
-Authoritative write order for terrain NMBGF: [`source/Plt2Elv.f`](../source/Plt2Elv.f) (`FEET`, `DIDJ`, `NINJ`, `XRYR`, `ZALT`/`FLOW`).
+Authoritative write order for terrain NMBGF: local [`Plt2Elv.f`](../source/Plt2Elv.f) (`FEET`, `DIDJ`, `NINJ`, `XRYR`, `ZALT`/`FLOW`) — gitignored; not in the public tree.
 
 ---
 
