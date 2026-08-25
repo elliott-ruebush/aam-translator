@@ -54,10 +54,14 @@ class GridSpec:
         width: int,
         height: int,
     ) -> GridSpec:
-        """Build a ``GridSpec`` from a north-up pixel-is-area affine (inverse of ``from_origin``)."""
+        """Build a ``GridSpec`` from a north-up pixel-is-area affine.
+
+        Inverse of rasterio ``from_origin``.
+        """
         if width <= 0 or height <= 0:
             raise ValueError(
-                f"width and height must be positive, got width={width}, height={height}",
+                "width and height must be positive, "
+                f"got width={width}, height={height}",
             )
 
         a = transform.a

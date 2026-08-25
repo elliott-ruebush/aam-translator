@@ -11,7 +11,12 @@ from pyproj import Transformer
 
 from aam_translator import load_terrain, write_aam_inputs, write_inp, write_terrain
 from aam_translator.constants import FT_PER_M
-from aam_translator.context import aoi_envelope, build_aeqd_crs, elv_extent_ft, lonlat_to_model_ft
+from aam_translator.context import (
+    aoi_envelope,
+    build_aeqd_crs,
+    elv_extent_ft,
+    lonlat_to_model_ft,
+)
 from aam_translator.grid_spec import GridSpec
 from aam_translator.nmbgf_io import read_nmbgf_header
 from aam_translator.write_elv import clip_path_for_elv, write_elv_from_dem
@@ -114,6 +119,7 @@ def test_load_terrain_round_trip(
         cutoff_ft=written.cutoff_ft,
     )
 
+    assert written.clip_tif_path is not None
     clip_spec = _spec_from_clip(written.clip_tif_path)
     assert loaded.spec.cell_count_x == clip_spec.cell_count_x
     assert loaded.spec.cell_count_y == clip_spec.cell_count_y
@@ -198,6 +204,7 @@ def test_load_terrain_missing_clip(
     tiny_aoi_geom,
 ) -> None:
     written = write_terrain(str(tiny_dem_path), tiny_aoi_geom, tmp_path)
+    assert written.clip_tif_path is not None
     Path(written.clip_tif_path).unlink()
 
     with pytest.raises(FileNotFoundError, match=written.clip_tif_path):
