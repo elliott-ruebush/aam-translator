@@ -15,7 +15,7 @@ from aam_translator import write_terrain, load_terrain, write_inp, write_aam_inp
 from aam_translator import read_poi, read_run_log
 ```
 
-Requires Python >=3.12 (tested on 3.12). Install in another project with:
+Requires Python >=3.12 (CI: 3.12 on Linux and Windows). Install in another project with:
 
 ```
 pip install git+https://github.com/elliott-ruebush/aam-translator.git
@@ -26,15 +26,6 @@ Or from a local clone:
 ```
 pip install -e /path/to/aam_translator
 ```
-
-
-
-## Platform notes
-
-- **Python >=3.12** — required; CI tests on 3.12 only.
-- **GDAL** — bundled with rasterio wheels on macOS, Linux, and Windows; no separate GDAL install is needed for typical use.
-
-
 
 ## Docs
 

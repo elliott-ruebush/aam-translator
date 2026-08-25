@@ -5,7 +5,7 @@ Reference for the AEQD resample implemented in ``write_elv.py``. Complements the
 Regenerating figures:
 
 ```
-uv pip install matplotlib   # not a runtime dependency
+python -m pip install matplotlib   # not a runtime dependency
 python docs/generate_elv_pipeline_figures.py
 ```
 

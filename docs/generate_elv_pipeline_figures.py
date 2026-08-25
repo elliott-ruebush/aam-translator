@@ -1,7 +1,7 @@
 """Regenerate PNG figures for docs/elv_pipeline.md.
 
 Not a package API. Requires matplotlib in the environment
-(``uv pip install matplotlib``; it is not a runtime dependency).
+(``python -m pip install matplotlib``; it is not a runtime dependency).
 
 Synthetic Triple Lakes–like geometry only — does not read a DEM.
 """
