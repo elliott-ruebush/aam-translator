@@ -194,7 +194,7 @@ def test_load_terrain_elv_and_clip_only(
 
 def test_load_terrain_missing_elv(tmp_path: Path) -> None:
     missing = tmp_path / "missing.elv"
-    with pytest.raises(FileNotFoundError, match=str(missing)):
+    with pytest.raises(FileNotFoundError, match="missing.elv"):
         load_terrain(missing)
 
 
@@ -207,7 +207,7 @@ def test_load_terrain_missing_clip(
     assert written.clip_tif_path is not None
     Path(written.clip_tif_path).unlink()
 
-    with pytest.raises(FileNotFoundError, match=written.clip_tif_path):
+    with pytest.raises(FileNotFoundError, match="scenario_clip.tif"):
         load_terrain(written.elv_path)
 
 
