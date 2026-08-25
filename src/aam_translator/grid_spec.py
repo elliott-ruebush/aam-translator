@@ -33,6 +33,9 @@ def merge_bounds(*bounds: BoundsM) -> BoundsM:
     )
 
 
+_TRANSFORM_ATOL_M = 1e-9
+
+
 @dataclass(frozen=True)
 class GridSpec:
     """Regular north-up lattice: SW corner, cell size, and cell counts."""
@@ -43,6 +46,42 @@ class GridSpec:
     cell_dy_m: float
     grid_origin_x_m: float
     grid_origin_y_m: float
+
+    @classmethod
+    def from_north_up_transform(
+        cls,
+        transform,
+        width: int,
+        height: int,
+    ) -> GridSpec:
+        """Build a ``GridSpec`` from a north-up pixel-is-area affine (inverse of ``from_origin``)."""
+        if width <= 0 or height <= 0:
+            raise ValueError(
+                f"width and height must be positive, got width={width}, height={height}",
+            )
+
+        a = transform.a
+        b = transform.b
+        c = transform.c
+        d = transform.d
+        e = transform.e
+        f = transform.f
+
+        if abs(b) > _TRANSFORM_ATOL_M or abs(d) > _TRANSFORM_ATOL_M:
+            raise ValueError("clip transform is rotated or skewed; expected north-up")
+        if a <= 0:
+            raise ValueError("clip transform is west-up; expected east-up (a > 0)")
+        if e >= 0:
+            raise ValueError("clip transform is south-up; expected north-up (e < 0)")
+
+        return cls(
+            cell_count_x=width,
+            cell_count_y=height,
+            cell_dx_m=a,
+            cell_dy_m=-e,
+            grid_origin_x_m=c,
+            grid_origin_y_m=f + height * e,
+        )
 
     @property
     def grid_extent_x_m(self) -> float:

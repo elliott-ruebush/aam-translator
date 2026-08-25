@@ -158,6 +158,7 @@ def build_aeqd_grid(
         grid_origin_x_m=merged.xmin_m,
         grid_origin_y_m=merged.ymin_m,
     )
+    # Inverse: GridSpec.from_north_up_transform
     grid_transform = from_origin(
         spec.grid_origin_x_m,
         grid_extent_y_m,

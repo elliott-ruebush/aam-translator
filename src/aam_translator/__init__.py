@@ -8,7 +8,8 @@ from .poi_align import arrival_time_residuals, assert_track_alignment
 from .read_log import AamRunLog, AnalysisTrackPoint, GridExtent, read_run_log
 from .read_poi import PoiTimeHistory, read_poi
 from .read_poi_csv import PoiSummary, read_poi_summary_csv
-from .write_aam import AamInputs, write_aam_inputs, write_terrain
+from .terrain import load_terrain, write_terrain
+from .write_aam import AamInputs, write_aam_inputs
 from .write_inp import PoiPoint, TrackPoint, hop_speed_kn, write_inp
 
 __all__ = [
@@ -31,6 +32,7 @@ __all__ = [
     "assert_track_alignment",
     "band_label",
     "hop_speed_kn",
+    "load_terrain",
     "lonlat_to_model_ft",
     "read_nmbgf_grid",
     "read_nmbgf_header",

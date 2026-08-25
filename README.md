@@ -9,7 +9,7 @@ common outputs back.
 - `.POI`, `{basename}.txt`, `.Single.POI.csv` — see [Reading AAM output](docs/reading_aam_output.md)
 
 ```python
-from aam_translator import write_terrain, write_inp, write_aam_inputs
+from aam_translator import write_terrain, load_terrain, write_inp, write_aam_inputs
 from aam_translator import read_poi, read_run_log
 ```
 
