@@ -5,6 +5,7 @@ from __future__ import annotations
 import warnings
 
 import numpy as np
+from scipy.ndimage import distance_transform_edt
 
 
 def fill_nodata(arr, nodata, policy: str = "edge") -> np.ndarray:
@@ -45,10 +46,7 @@ def fill_nodata(arr, nodata, policy: str = "edge") -> np.ndarray:
     if policy != "edge":
         raise ValueError(f"unknown nodata policy {policy!r}; use edge, zero, or median")
 
-    valid_idx = np.argwhere(valid)
-    invalid_idx = np.argwhere(invalid)
-    for j, i in invalid_idx:
-        dists = (valid_idx[:, 0] - j) ** 2 + (valid_idx[:, 1] - i) ** 2
-        nearest = valid_idx[int(np.argmin(dists))]
-        out[j, i] = out[nearest[0], nearest[1]]
+    _, indices = distance_transform_edt(invalid, return_indices=True)
+    nearest = out[indices[0], indices[1]]
+    out[invalid] = nearest[invalid]
     return out

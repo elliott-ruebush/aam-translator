@@ -1,5 +1,7 @@
 """Tests for nodata fill policies."""
 
+import time
+
 import numpy as np
 import pytest
 
@@ -68,3 +70,21 @@ def test_all_nodata_fills_zero_and_warns():
     with pytest.warns(UserWarning, match="no valid elevation cells"):
         out = fill_nodata(arr, nodata=-9999.0, policy="median")
     np.testing.assert_array_equal(out, np.zeros((2, 2)))
+
+
+def test_edge_fill_performance():
+    size = 400
+    arr = np.arange(size * size, dtype=np.float64).reshape(size, size)
+    corner = size // 4
+    arr[:corner, :corner] = np.nan
+    arr[-corner:, -corner:] = np.nan
+
+    start = time.perf_counter()
+    out = fill_nodata(arr, nodata=None, policy="edge")
+    elapsed = time.perf_counter() - start
+
+    assert elapsed < 2.0
+    assert not np.isnan(out).any()
+    valid_neighbors = arr[~np.isnan(arr)]
+    filled = out[np.isnan(arr)]
+    assert set(np.unique(filled).tolist()) <= set(np.unique(valid_neighbors).tolist())

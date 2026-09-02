@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aam-translator"
-version = "0.1.4"
+version = "0.2.0"
 description = "Prepare geospatial inputs for the Advanced Acoustic Model (.ELV, .IMP, .INP)"
 readme = "README.md"
 authors = [
@@ -14,6 +14,7 @@ requires-python = ">=3.12"
 dependencies = [
     # Align with NPS-ActiveSpace (numpy==2.3.1); keep upper bound for pip resolution.
     "numpy>=2.2.6,<2.4",
+    "scipy==1.16.0",
     "rasterio==1.4.3",
     "pyproj==3.7.1",
     "shapely==2.1.1",
