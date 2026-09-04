@@ -58,7 +58,7 @@ flowchart LR
 
 ``write_elv_from_dem`` builds a regular AEQD lattice, bilinear-resamples the parent DEM onto it, fills nodata **after** resample, and writes that grid to both ``_clip.tif`` (meters, ``aeqd_crs``) and ``.ELV`` (feet).
 
-The ``_clip.tif`` sidecar is for debugging only (AAM does not read it). Each rerun overwrites it; if the file is open in a GIS viewer, the write may fail with a permission error until you close the viewer (most common on Windows).
+AAM does not read the clip. This library does: ``load_terrain`` is the inverse of ``write_terrain`` — it rebuilds ``TerrainResult`` from the on-disk ``.ELV`` / ``.IMP`` without resampling the parent DEM, and **requires** ``{stem}_clip.tif`` as the georeference twin (AEQD CRS + affine). Missing clip → ``FileNotFoundError``; do not rebuild AEQD from a new AOI (that lattice would not match the written ELV). Each rerun overwrites the clip; if the file is open in a GIS viewer, the write may fail with a permission error until you close the viewer (most common on Windows).
 
 ## Constants
 

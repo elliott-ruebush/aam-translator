@@ -29,7 +29,7 @@ pip install -e /path/to/aam_translator
 
 ## Docs
 
-- [DEM → AAM ELV pipeline](docs/elv_pipeline.md) — AEQD bilinear resample pipeline (implementation).
-- [Reading AAM output](docs/reading_aam_output.md) — `.POI`, run logs, alignment checks, multi-point track guardrails.
+- [DEM → AAM ELV pipeline](docs/elv_pipeline.md) — AEQD bilinear resample; `load_terrain` reloads from ELV + clip.
+- [Reading AAM output](docs/reading_aam_output.md) — `.POI`, run logs, alignment checks, multi-point tracks, runtime gotchas.
 - [References](references/README.md) — AAM `.inp` / NMBGF format specs and glossary (vendor manual/source local only).
 

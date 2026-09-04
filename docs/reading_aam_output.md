@@ -3,7 +3,7 @@
 This library parses a few post-run artifacts from AAM 3.x. The focus here is
 `COMPUTEPOI` — one spectral time-history zone per receiver, one row per track point.
 
-Format limits (400-point track cap, `READ ERROR` behaviour) are documented in
+Format limits (400-point track cap, 1-vertex crash, `READ ERROR` behaviour) are documented in
 [`references/notes/aam_inp_format.md`](../references/notes/aam_inp_format.md#batch-limits-computepoi).
 
 ## What each reader returns
@@ -49,6 +49,24 @@ into the log and no `.POI`. Check `read_run_log(...).ok`, not the process exit c
 **Arrival times are not monotonic.** Each row's `Time` is when sound *reaches* the
 receiver, not when it was emitted. Scattered source points produce out-of-order
 timestamps. Sorting by time scrambles the row-to-source-point mapping.
+
+**A 1-vertex `ONE TRACK` crashes AAM 3.0.0.** Wine exits 152 with an empty `.POI`;
+the log never reaches the interpolated-track table. `write_inp` allows `speed_kn=0`
+for N=1, but the binary still needs at least two vertices. A ~1 m pad hop works.
+This library does not pad — that is a consumer choice. See
+[batch limits](../references/notes/aam_inp_format.md#batch-limits-computepoi).
+
+**A below-ground vertex or interpolated hop aborts the entire `ONE TRACK`.** AAM
+bilinear-samples `.ELV` and writes `ERROR: Below ground. TERRAIN`, often leaving
+an empty `.POI`. This library does not filter tracks. Consumers must prefilter or
+split hops before write.
+
+**Fortran `FILENAME` is 140 characters.** AAM 3.0.0 stores `ROTOR_NOISE` / `NCfiles`
+paths in that buffer. Long work-dir paths fail; keep paths short.
+
+**POI bands stop at 10 kHz.** AAM `.POI` spectra are 10 Hz–10 kHz
+(`AAM_BAND_NUMBERS` / `range(10, 41)`). Consumers that need 12.5 kHz must pad;
+this library does not invent band 41.
 
 ## Multi-point tracks
 

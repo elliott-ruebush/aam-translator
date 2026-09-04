@@ -205,9 +205,22 @@ The manual documents **two** independent caps (AAM v3 §3.5.1.3, Tables 3-20 and
 
 **ActiveSpace reciprocity** uses **1 `POI` + N `ONE TRACK` points** — the binding cap is **`ONE TRACK`**, not `POI`.
 
-**Empirical (AAM 3.0.0, Docker+Wine, Aug 2026):** `ONE TRACK` input count **fails above 400** (`READ ERROR … exceeds 400` in `{basename}.txt`). **500 segments is rejected** even though Table 3-20 says 500 max. **400 segments succeeds** with one POI row per vertex (`activespace-experiments/tier4b_aam_500_point_smoke.py`, `runs/tier4b_400_point_smoke/summary.json`).
+**Empirical (AAM 3.0.0, Docker+Wine, Aug 2026):** `ONE TRACK` input count **fails above 400** (`READ ERROR … exceeds 400` in `{basename}.txt`). **500 segments is rejected** even though Table 3-20 says 500 max. **400 segments succeeds** with one POI row per vertex (`activespace-experiments/tier4b_aam_500_point_smoke.py`).
 
-**Batching guidance:** plan **≤400 source points per `.inp`** until verified on another AAM build. A 48×48 mesh (~2304 sources) ≈ **6 runs** at 400 points each. POI receiver count (up to 500) was **not** stress-tested here.
+**A 1-point `ONE TRACK` also fails** (Wine exit 152, empty `.POI`), even with a dummy positive speed. The log stops after the track table — it never writes `Interpolated Track for analysis`. `write_inp` allows `speed_kn=0` for N=1; this binary still needs **at least two vertices**. A ~1 m pad hop works (2 POI rows). `speed_kn=0` on N>1 is the documented `INTRTIME` reject.
+
+**Do not swap geometry** (1 track + N POIs) for ActiveSpace: it is the wrong reciprocity over terrain, and it hits the same 1-vertex crash. `COMPUTEGRD` is the wrong product (scalar map metrics, not per-band spectra at the mic).
+
+**Batch-size timing** (`activespace-experiments/tier4c_batch_timing.py`, ridge line, `hop_speed_kn` ≈ 15 kn, 1:1 rows, no subdivision):
+
+| Packing | Docker wall | AAM Start/Stop |
+|---------|-------------|----------------|
+| 1 × 400 track | **4.2 s** | 1.07 s |
+| 8 × 50, each `docker run` | **33 s** (7.9×) | ~0.6 s × 8 |
+| 8 × 50, one container, sequential `wine` | **17 s** (4.0×) | same AAM work |
+| Linear fit (AAM internal) | — | **0.45 s fixed + 1.6 ms/point** (r² 0.98) |
+
+Docker+Wine startup (~3 s) plus AAM terrain setup (~0.45 s) dominate. Extra track points are nearly free. `DIAGNOSTICS` off does not help. Prefer **400-point** `ONE TRACK` batches (empirical cap; extra points are cheap vs Wine/terrain startup). A below-ground vertex or interpolated hop aborts the **entire** track — prefilter or split hops **before write**; do not binary-split a failed batch as a retry (that just multiplies process launches). A 48×48 mesh (~2304 sources) ≈ **6 × 400-point runs (~25 s sequential)** vs ~47 × 50-point runs (~3 min sequential).
 
 Other manual “500” limits (roads, quarry ops, `FLTTRK` curved-segment resolution) are unrelated to `ONE TRACK` snapshot batching.
 
