@@ -1,6 +1,6 @@
 # Glossary — NMSim, AAM, and formats
 
-Shared terms for file formats, grids, coordinates, and acoustic metrics. AAM `.inp` keywords: [`aam_inp_format.md`](aam_inp_format.md). Cross-model NMSim↔AAM overview: `nmsim-aam-experiments/notes/nmsim_vs_aam_comparison.md`.
+Shared terms for file formats, grids, coordinates, and acoustic metrics. AAM `.inp` keywords: [`aam_inp_format.md`](aam_inp_format.md). Cross-model NMSim↔AAM overview: [`nmsim_vs_aam_comparison.md`](https://github.com/elliott-ruebush/nmsim-aam-experiments/blob/main/notes/nmsim_vs_aam_comparison.md).
 
 ## Models
 
@@ -9,7 +9,6 @@ Shared terms for file formats, grids, coordinates, and acoustic metrics. AAM `.i
 | **NMSim** | Noise Model Simulation — NPS (National Park Service) batch tool (`Nord2000batch.exe`). |
 | **AAM** | Advanced Acoustic Model (USDOT Volpe Center). Vendor binary: `AAM_3.0.0.exe`. |
 | **Nord2000** | Outdoor propagation method NMSim uses when a `.wea` weather file is selected (2013 update). |
-| **AAM_inp** | *(historical)* Earlier Python prep tool in **AAM-Python-Tools**. Superseded by **`aam_translator`**. |
 | **`aam_translator`** | Installable Python package: clips/resamples a parent GeoTIFF onto an **AEQD** lattice, writes `.ELV`/`.IMP`, and emits `.inp` blocks (`write_terrain`, `write_inp`, `write_aam_inputs`). Not the AAM executable. |
 
 <a id="coordinates-and-projections"></a>
@@ -61,6 +60,18 @@ Shared terms for file formats, grids, coordinates, and acoustic metrics. AAM `.i
 | **`SETUP PARA`** | Required AAM block: calculating-grid spacing, corners, receiver AGL, and [line-4 propagation parameters](#aam-propagation-parameters-setup-para-line-4) (Δβ, cutoff, flow resistivity, decoherence). |
 | **`TERRAINCHK`** | AAM startup check: the calculating grid (`SETUP PARA` corners) must fit inside the `.ELV` terrain extent. |
 
+<a id="terrain-propagation"></a>
+
+## Terrain propagation
+
+| Term | Meaning |
+|------|---------|
+| **`TERRAIN`** | AAM `.inp` keyword: paired NMBGF elevation and impedance paths (`.ELV`/`.IMP`). Enables **Rasmussen GTD** ground interaction; **`ONE TRACK` z is MSL** with terrain on. When off, flat-earth **`flow resistivity`** on SETUP PARA line 4 applies instead. |
+| **Rasmussen GTD** | AAM 3.0 terrain propagation engine used with **`TERRAIN`** (generalized terrain diffraction / ground effects). Contrasts with NMSim **Nord2000** over **GridFloat** site terrain. |
+| **`scenario.TER` / TER** | Optional diagnostic ASCII when **`DIAGNOSTICS`** includes **`ALL MESSAGES`**: per track-point vertical slice in the source–receiver plane (**S** ground range, **Z** terrain MSL, **Imp**, **Sflip**) plus a summary row with type **`Hill`** or **`Valley`** and 1/3-oct terrain+ground attenuation (dB). |
+| **Hill / Valley** | TER summary labels from AAM. Both barrier diffraction and convex-ground cases can appear as **`Hill`** — use **attenuation values**, not the type name alone. |
+| **ray clearance** | Shortest vertical distance (m) from the straight source–receiver ray to terrain along the path. **Negative clearance** ⇒ geometric line-of-sight blocked by terrain (independent of what AAM or NMSim attenuate). |
+
 <a id="aam-propagation-parameters-setup-para-line-4"></a>
 
 ## AAM propagation parameters — SETUP PARA line 4
@@ -100,6 +111,8 @@ These fields sit on **`SETUP PARA` line 4** in every `.inp`. Syntax: [`aam_inp_f
 | **1/3-oct** | One-third-octave band. Levels vs frequency, one number per ANSI band *n*. |
 | **ANSI *n*** | Band number; center *f* = 10^(*n*/10) Hz. *n* = 10 → 10 Hz; 30 → 1 kHz; 40 → 10 kHz; 41 → 12.5 kHz. |
 | **dB / dBA / dBC** | Sound pressure level; **A** or **C** frequency weighting. AAM `.POI` output is already dB. |
+| **broadband A** | Single **A-weighted** level (dBA) at each receive time, computed from the overlapping 1/3-oct bands (NMSim TIS/TIG and AAM `.POI`). Primary time-series metric when comparing models on one receiver. |
+| **RMS Δ** | Root-mean-square of **(NMSim − AAM) broadband A** over aligned receive times — scalar summary of how far apart the two level curves are (dB). |
 | **centibel (cB)** | NMSim TIS/TIG storage: 10 cB = 1 dB. Parser multiplies by 0.1. |
 | **Lmax** / **Lmax-A** | Maximum level during the event (A-weighted if -A). |
 | **SEL** / **SEL-A** / **SELA** | Sound exposure level: time-integrated energy of the event (A-weighted if -A). AAM GRD keyword `SELA`. |

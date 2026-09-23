@@ -1,6 +1,6 @@
 # AAM `.inp` format — short reference
 
-Scope: **single-event** `.inp` files (manual §3.5.1). Terminology: [`glossary.md`](glossary.md). NMBGF terrain files (`.ELV`/`.IMP`/`.GRD`): [`aam_nmbgf.md`](aam_nmbgf.md). Full manual: [`manuals/aam_v3_manual.txt`](../manuals/aam_v3_manual.txt).
+Scope: **single-event** `.inp` files (manual §3.5.1). Terminology: [`glossary.md`](glossary.md). NMBGF terrain files (`.ELV`/`.IMP`/`.GRD`): [`aam_nmbgf.md`](aam_nmbgf.md). Full manual (local extract): [`manuals/README.md`](../manuals/README.md).
 
 **Pre-run overview** (in `nmsim-aam-experiments`): `python3 scripts/dev/inp_overview.py path/to/scenario.inp`
 
@@ -29,7 +29,7 @@ Manual **§3.4 Data Grids**, **Figure 3-2**. AAM uses two nested horizontal grid
 
 ![Figure 3-2: geometric relationship between tracks, terrain grid, and noise grid](aam_figure_3_2_grids.png)
 
-*Figure 3-2 (manual; PNG gitignored — copy locally from the vendor PDF):* terrain grid file must encompass the noise calculation grid **and** tracks; the margin outside the noise grid should be large enough that levels at the terrain edge are ≥10 dB below the peak (metric standards).
+*Figure 3-2 (from the AAM v3 manual; committed PNG for doc viewing):* terrain grid file must encompass the noise calculation grid **and** tracks; the margin outside the noise grid should be large enough that levels at the terrain edge are ≥10 dB below the peak (metric standards).
 
 **Rules (same user model feet throughout):**
 
@@ -226,7 +226,7 @@ Other manual “500” limits (roads, quarry ops, `FLTTRK` curved-segment resolu
 
 ---
 
-## Manual index ([`manuals/aam_v3_manual.txt`](../manuals/aam_v3_manual.txt))
+## Manual index ([`manuals/README.md`](../manuals/README.md) — local `aam_v3_manual.txt` for search)
 
 | Topic | Section |
 |-------|---------|

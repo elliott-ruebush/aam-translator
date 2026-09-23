@@ -9,6 +9,6 @@ Canonical PDF and searchable text extract are **gitignored** — obtain locally 
 
 Use `rg` on `aam_v3_manual.txt` once present; PDFs are for figures and tables not captured in the extract.
 
-Manual **Figure 3-2** (two nested grids) is copied to [`../notes/aam_figure_3_2_grids.png`](../notes/aam_figure_3_2_grids.png) for local viewing — that PNG is gitignored alongside this directory.
+Manual **Figure 3-2** (two nested grids) is committed as [`../notes/aam_figure_3_2_grids.png`](../notes/aam_figure_3_2_grids.png) for docs (also embedded in [`aam_inp_format.md`](../notes/aam_inp_format.md)).
 
-NMSim manuals remain in `nmsim-aam-experiments/notes/manuals/`.
+NMSim manuals: [`nmsim-aam-experiments` `notes/manuals/`](https://github.com/elliott-ruebush/nmsim-aam-experiments/tree/main/notes/manuals).
