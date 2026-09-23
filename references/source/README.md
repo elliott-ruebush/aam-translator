@@ -1,6 +1,6 @@
-# Vendor AAM source — local only
+# Vendor AAM source
 
-Fortran extracts from the AAM / NMBGF toolchain are **gitignored** — copy from your AAM install or NPS data drive. Not redistributed in this public repo.
+Fortran extracts from the AAM / NMBGF toolchain are **not in git** (vendor redistribution). The public repo only documents what to place here; copy from your AAM install or NPS data drive.
 
 | File | Role |
 |------|------|

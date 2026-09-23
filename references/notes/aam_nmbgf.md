@@ -31,7 +31,7 @@ not as a missing read path.
 
 ## Header fields (CASE block → MTRC → data)
 
-Read order matches vendor [`Plt2Elv.f`](../source/README.md) (local copy; see [`source/README.md`](../source/README.md)). Canonical read path in this package: [`nmbgf_io.read_nmbgf_header`](../../src/aam_translator/nmbgf_io.py).
+Read order matches vendor `Plt2Elv.f` (not in git — see [`source/README.md`](../source/README.md)). Canonical read path in this package: [`nmbgf_io.read_nmbgf_header`](../../src/aam_translator/nmbgf_io.py).
 
 | Tag | Meaning | Units / notes |
 |-----|---------|----------------|
@@ -107,7 +107,7 @@ metres, and as `float32` because that is how the payload is stored.
 
 ---
 
-Authoritative write order for terrain NMBGF: [`Plt2Elv.f`](../source/README.md) (`FEET`, `DIDJ`, `NINJ`, `XRYR`, `ZALT`/`FLOW`) — obtain locally per [`source/README.md`](../source/README.md).
+Authoritative write order for terrain NMBGF: vendor `Plt2Elv.f` (`FEET`, `DIDJ`, `NINJ`, `XRYR`, `ZALT`/`FLOW`) — not in git; see [`source/README.md`](../source/README.md).
 
 ---
 
